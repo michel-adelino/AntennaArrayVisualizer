@@ -40,7 +40,7 @@ To create an installer for the application, follow these steps:
    ```
    This generates `AntennaArrayVisualizer.exe` in the `dist` folder.
 4. Install Inno Setup (free tool from [jrsoftware.org](https://jrsoftware.org/isinfo.php)).
-5. Open `innoSetupScript.iss` in Inno Setup Compiler and compile it to create the installer `Installer_AntennaArrayVisualizer.exe` in the `Output` folder).
+5. Open `innoSetupScript.iss` in Inno Setup Compiler and compile it to create the installer `Installer_AntennaArrayVisualizer.exe` in the `Output` folder.
 
 
 ## Authors
