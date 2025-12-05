@@ -63,11 +63,18 @@ class App(ctk.CTk):
         self.fixed_cursor = False
         self.fixed_x = None
         self.fixed_db = None
+        self.fixed_axis_idx = None # 0 for ax1/single, 1 for ax2
         self.last_x = None
         self.last_db = None
         self.cursor_point = None
         self.cursor_line = None
         self.cursor_text = ""
+        self.cursor_point1 = None
+        self.cursor_line1 = None
+        self.cursor_point2 = None
+        self.cursor_line2 = None
+        self.cursor_text1 = ""
+        self.cursor_text2 = ""
 
         # --- LAYOUT ---
         self.grid_columnconfigure(1, weight=1)
@@ -208,84 +215,162 @@ class App(ctk.CTk):
     # --- CURSOR LOGIC ---
     def get_cursor_data(self, event):
         """Returns (angle_deg, db_val, plot_x) from event."""
-        if self.combo_view.get() == "Both": return None
-        if self.seg_plot_type.get() == "Polar":
-            if event.xdata is None: return None
-            if self.theta_plot is None or self.af_db_plot is None:
-                return None
-            # Polar xdata is radians. Normalize to 0-360
-            angle_rad = (event.xdata % (2 * np.pi) + 2 * np.pi) % (2 * np.pi)
-            db = np.interp(angle_rad, self.theta_plot, self.af_db_plot)
-            return np.rad2deg(angle_rad), db, angle_rad
+        view = self.combo_view.get()
+        plot_type = self.seg_plot_type.get()
+        if view == "Both":
+            if plot_type == "Polar":
+                if event.inaxes == self.ax1:
+                    if event.xdata is None or self.theta_v is None or self.af_db_v is None:
+                        return None
+                    angle_rad = (event.xdata % (2 * np.pi) + 2 * np.pi) % (2 * np.pi)
+                    db = np.interp(angle_rad, self.theta_v, self.af_db_v)
+                    return np.rad2deg(angle_rad), db, angle_rad
+                elif event.inaxes == self.ax2:
+                    if event.xdata is None or self.theta_h is None or self.af_db_h is None:
+                        return None
+                    angle_rad = (event.xdata % (2 * np.pi) + 2 * np.pi) % (2 * np.pi)
+                    db = np.interp(angle_rad, self.theta_h, self.af_db_h)
+                    return np.rad2deg(angle_rad), db, angle_rad
+            else:  # Cartesian
+                if event.inaxes == self.ax1:
+                    if event.xdata is None or self.theta_deg_sorted_v is None or self.af_db_sorted_v is None:
+                        return None
+                    angle_deg = event.xdata
+                    db = np.interp(angle_deg, self.theta_deg_sorted_v, self.af_db_sorted_v)
+                    return angle_deg, db, angle_deg
+                elif event.inaxes == self.ax2:
+                    if event.xdata is None or self.theta_deg_sorted_h is None or self.af_db_sorted_h is None:
+                        return None
+                    angle_deg = event.xdata
+                    db = np.interp(angle_deg, self.theta_deg_sorted_h, self.af_db_sorted_h)
+                    return angle_deg, db, angle_deg
+            return None
         else:
-            if event.xdata is None: return None
-            if self.theta_deg_sorted is None or self.af_db_sorted is None:
-                return None
-            angle_deg = event.xdata
-            db = np.interp(angle_deg, self.theta_deg_sorted, self.af_db_sorted)
-            return angle_deg, db, angle_deg
+            if plot_type == "Polar":
+                if event.xdata is None or self.theta_plot is None or self.af_db_plot is None:
+                    return None
+                angle_rad = (event.xdata % (2 * np.pi) + 2 * np.pi) % (2 * np.pi)
+                db = np.interp(angle_rad, self.theta_plot, self.af_db_plot)
+                return np.rad2deg(angle_rad), db, angle_rad
+            else:
+                if event.xdata is None or self.theta_deg_sorted is None or self.af_db_sorted is None:
+                    return None
+                angle_deg = event.xdata
+                db = np.interp(angle_deg, self.theta_deg_sorted, self.af_db_sorted)
+                return angle_deg, db, angle_deg
 
-    def update_cursor_visuals(self, angle_deg, db, x_val, is_fixed=False):
+    def update_cursor_visuals(self, angle_deg, db, x_val, is_fixed=False, ax=None):
+        if ax is None:
+            ax = self.ax
+        # Determine which cursor to update
+        if ax == getattr(self, 'ax1', None):
+            cursor_point = self.cursor_point1
+            cursor_line = self.cursor_line1
+            cursor_text_attr = 'cursor_text1'
+        elif ax == getattr(self, 'ax2', None):
+            cursor_point = self.cursor_point2
+            cursor_line = self.cursor_line2
+            cursor_text_attr = 'cursor_text2'
+        else:
+            cursor_point = self.cursor_point
+            cursor_line = self.cursor_line
+            cursor_text_attr = 'cursor_text'
+        
         # Calculate Directivity at this angle: D_max(dBi) + NormalizedPattern(dB)
         d_max_dbi = 10 * np.log10(self.D_linear) if self.D_linear > 0 else 0
         local_dir = d_max_dbi + db
         
         # Text format
         text = f"Cursor: ({angle_deg:.1f}°, {db:.1f}dB), D(°)={local_dir:.2f}dBi"
-        self.cursor_text = text
+        setattr(self, cursor_text_attr, text)
         
         # Update point/line
         if is_fixed:
-            if self.cursor_point: self.cursor_point.set_visible(True)
-            if self.cursor_line: self.cursor_line.set_visible(True)
-            # We create distinct objects for fixed if needed, but for simplicity reusing logic
-            # Here we just update title
+            if cursor_point: cursor_point.set_visible(True)
+            if cursor_line: cursor_line.set_visible(True)
         else:
-            if self.cursor_point:
-                self.cursor_point.set_offsets([x_val, db])
-                self.cursor_point.set_visible(True)
+            if cursor_point:
+                cursor_point.set_offsets([x_val, db])
+                cursor_point.set_visible(True)
             else:
-                self.cursor_point = self.ax.scatter(x_val, db, color='red', s=50, zorder=10)
+                cursor_point = ax.scatter(x_val, db, color='red', s=50, zorder=10)
+                setattr(self, f"cursor_point{1 if ax == getattr(self, 'ax1', None) else 2 if ax == getattr(self, 'ax2', None) else ''}", cursor_point)
                 
-            if self.cursor_line:
-                self.cursor_line.set_xdata([x_val, x_val])
-                self.cursor_line.set_visible(True)
+            if cursor_line:
+                cursor_line.set_xdata([x_val, x_val])
+                cursor_line.set_visible(True)
             else:
-                self.cursor_line = self.ax.axvline(x_val, color='red', linestyle='--')
+                cursor_line = ax.axvline(x_val, color='red', linestyle='--')
+                setattr(self, f"cursor_line{1 if ax == getattr(self, 'ax1', None) else 2 if ax == getattr(self, 'ax2', None) else ''}", cursor_line)
 
         self.update_title()
 
     def on_mouse_move(self, event):
-        if event.inaxes != self.ax or self.fixed_cursor or self.theta_plot is None: return
+        if event.inaxes != self.ax and self.combo_view.get() != "Both": return
+        if self.fixed_cursor or (self.combo_view.get() != "Both" and self.theta_plot is None): return
         data = self.get_cursor_data(event)
         if data:
             self.last_x, self.last_db = data[2], data[1]
-            self.update_cursor_visuals(data[0], data[1], data[2])
+            self.update_cursor_visuals(data[0], data[1], data[2], ax=event.inaxes)
             self.canvas.draw_idle() # Optimized redraw
 
     def on_click(self, event):
-        if event.inaxes != self.ax: return
+        if event.inaxes != self.ax and self.combo_view.get() != "Both": return
+        if self.combo_view.get() == "Both" and event.inaxes not in [getattr(self, 'ax1', None), getattr(self, 'ax2', None)]: return
         
         if self.fixed_cursor:
             # Unfreeze
             self.fixed_cursor = False
+            self.fixed_axis_idx = None
             self.cursor_text = ""
+            self.cursor_text1 = ""
+            self.cursor_text2 = ""
             self.update_title()
+            # Hide all cursors
+            if self.cursor_point: self.cursor_point.set_visible(False)
+            if self.cursor_line: self.cursor_line.set_visible(False)
+            if self.cursor_point1: self.cursor_point1.set_visible(False)
+            if self.cursor_line1: self.cursor_line1.set_visible(False)
+            if self.cursor_point2: self.cursor_point2.set_visible(False)
+            if self.cursor_line2: self.cursor_line2.set_visible(False)
+            self.canvas.draw()
         else:
             # Freeze
             data = self.get_cursor_data(event)
             if data:
                 self.fixed_cursor = True
                 self.fixed_x, self.fixed_db = data[2], data[1]
-                self.update_cursor_visuals(data[0], data[1], data[2], is_fixed=True)
+                
+                # Determine axis index
+                if self.combo_view.get() == "Both":
+                    if event.inaxes == getattr(self, 'ax1', None):
+                        self.fixed_axis_idx = 0
+                    elif event.inaxes == getattr(self, 'ax2', None):
+                        self.fixed_axis_idx = 1
+                else:
+                    self.fixed_axis_idx = 0
+                
+                self.update_cursor_visuals(data[0], data[1], data[2], is_fixed=True, ax=event.inaxes)
                 self.canvas.draw()
 
     def update_title(self):
-        if hasattr(self, 'ax') and self.ax:
-            # Preserve original title lines (first 2)
-            curr = self.ax.get_title()
-            base = '\n'.join(curr.split('\n')[:2])
-            self.ax.set_title(f"{base}\n{self.cursor_text}", va='bottom', fontsize=10)
+        view = self.combo_view.get()
+        if view == "Both":
+            if hasattr(self, 'ax1') and self.ax1 and hasattr(self, 'ax1_base_title'):
+                t1 = self.ax1_base_title
+                if self.cursor_text1:
+                    t1 += f"\n{self.cursor_text1}"
+                self.ax1.set_title(t1, fontsize=10)
+            
+            if hasattr(self, 'ax2') and self.ax2 and hasattr(self, 'ax2_base_title'):
+                t2 = self.ax2_base_title
+                if self.cursor_text2:
+                    t2 += f"\n{self.cursor_text2}"
+                self.ax2.set_title(t2, fontsize=10)
+        else:
+            if hasattr(self, 'ax') and self.ax and hasattr(self, 'ax_base_title'):
+                base = self.ax_base_title
+                self.ax.set_title(f"{base}\n{self.cursor_text}", va='bottom', fontsize=10)
 
     # --- 3D INSET LOGIC ---
     def draw_3d_inset(self, is_horizontal, array_axis='Z'):
@@ -296,21 +381,21 @@ class App(ctk.CTk):
         
         # 1. Draw Axis Arrows
         len_arrow = 1.5
-        ax_geo.quiver(0,0,0, len_arrow,0,0, color='r', arrow_length_ratio=0.2, linewidth=1) # X
+        ax_geo.quiver([0], [0], [0], [len_arrow], [0], [0], color='r', arrow_length_ratio=0.2, linewidth=1) # X
         ax_geo.text(len_arrow, 0, 0, "X", color='r', fontsize=8)
         
-        ax_geo.quiver(0,0,0, 0,len_arrow,0, color='g', arrow_length_ratio=0.2, linewidth=1) # Y
+        ax_geo.quiver([0], [0], [0], [0], [len_arrow], [0], color='g', arrow_length_ratio=0.2, linewidth=1) # Y
         ax_geo.text(0, len_arrow, 0, "Y", color='g', fontsize=8)
         
         # Array Axis - Thicker
         if array_axis == 'X':
-            ax_geo.quiver(0,0,0, len_arrow,0,0, color='k', arrow_length_ratio=0.2, linewidth=2) # X
+            ax_geo.quiver([0], [0], [0], [len_arrow], [0], [0], color='k', arrow_length_ratio=0.2, linewidth=2) # X
             ax_geo.text(len_arrow, 0, 0, "X", color='k', fontsize=9, fontweight='bold')
             # Draw Array Elements along X
             x_pos = np.linspace(-0.8, 0.8, 4)
             ax_geo.scatter(x_pos, np.zeros(4), np.zeros(4), color='black', s=15, alpha=1.0)
         else:
-            ax_geo.quiver(0,0,0, 0,0,len_arrow, color='k', arrow_length_ratio=0.2, linewidth=2) # Z
+            ax_geo.quiver([0], [0], [0], [0], [0], [len_arrow], color='k', arrow_length_ratio=0.2, linewidth=2) # Z
             ax_geo.text(0, 0, len_arrow, "Z", color='k', fontsize=9, fontweight='bold')
             # Draw Array Elements along Z
             z_pos = np.linspace(-0.8, 0.8, 4)
@@ -408,6 +493,12 @@ class App(ctk.CTk):
             self.cursor_point = None
             self.cursor_line = None
             self.cursor_text = ""
+            self.cursor_point1 = None
+            self.cursor_line1 = None
+            self.cursor_point2 = None
+            self.cursor_line2 = None
+            self.cursor_text1 = ""
+            self.cursor_text2 = ""
 
             if plot_type == "Polar":
                 if view == "Both":
@@ -418,6 +509,9 @@ class App(ctk.CTk):
                     # Vertical view
                     theta_v, total_linear_v = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Vertical (XZ)", array_axis=array_axis)
                     af_db_v = self.calculator.convert_to_db(total_linear_v, dynamic_range=dyn_range)
+                    
+                    self.theta_v = theta_v
+                    self.af_db_v = af_db_v
                     
                     self.ax1.set_theta_zero_location('N')
                     self.ax1.set_theta_direction(-1)
@@ -434,10 +528,14 @@ class App(ctk.CTk):
                     for label, theta_rad in directions_v.items():
                         self.ax1.text(theta_rad, -2, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
                     self.ax1.set_title("Vertical (XZ)", fontsize=10)
+                    self.ax1_base_title = "Vertical (XZ)"
                     
                     # Horizontal view
                     theta_h, total_linear_h = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Horizontal (XY)", array_axis=array_axis)
                     af_db_h = self.calculator.convert_to_db(total_linear_h, dynamic_range=dyn_range)
+                    
+                    self.theta_h = theta_h
+                    self.af_db_h = af_db_h
                     
                     self.ax2.set_theta_zero_location('N')
                     self.ax2.set_theta_direction(-1)
@@ -451,6 +549,7 @@ class App(ctk.CTk):
                     for label, theta_rad in directions_h.items():
                         self.ax2.text(theta_rad, -2, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
                     self.ax2.set_title("Horizontal (XY)", fontsize=10)
+                    self.ax2_base_title = "Horizontal (XY)"
                     
                     self.ax = self.ax1  # For cursor, use first one, but disable cursor for Both
                     
@@ -502,6 +601,7 @@ class App(ctk.CTk):
                     self.ax1.set_xticks(np.arange(-180, 181, angle_step))
                     self.ax1.grid(True, alpha=0.5)
                     self.ax1.set_title("Vertical (XZ)", fontsize=10)
+                    self.ax1_base_title = "Vertical (XZ)"
                     
                     self.ax2 = self.fig.add_subplot(122)
                     
@@ -525,6 +625,7 @@ class App(ctk.CTk):
                     self.ax2.set_xticks(np.arange(-180, 181, angle_step))
                     self.ax2.grid(True, alpha=0.5)
                     self.ax2.set_title("Horizontal (XY)", fontsize=10)
+                    self.ax2_base_title = "Horizontal (XY)"
                     
                     self.ax = self.ax1  # For compatibility
                     
@@ -558,6 +659,7 @@ class App(ctk.CTk):
             else:
                 title_text = f"Pattern ({view}, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, HPBW={hpbw:.1f}°"
                 self.ax.set_title(title_text, va='bottom', fontsize=10)
+                self.ax_base_title = title_text
             self.fig.tight_layout()
             
             # --- DRAW 3D ORIENTATION INSET ---
@@ -568,17 +670,74 @@ class App(ctk.CTk):
             
             # Update fixed cursor db and create visuals
             if self.fixed_cursor and self.fixed_x is not None:
-                if plot_type == "Polar":
-                    db = np.interp(self.fixed_x, self.theta_plot, self.af_db_plot)
+                target_ax = None
+                target_theta = None
+                target_db_arr = None
+                
+                if view == "Both":
+                    if self.fixed_axis_idx == 0: # Left / Vertical
+                        target_ax = self.ax1
+                        if plot_type == "Polar":
+                            target_theta = self.theta_v
+                            target_db_arr = self.af_db_v
+                        else:
+                            target_theta = self.theta_deg_sorted_v
+                            target_db_arr = self.af_db_sorted_v
+                    elif self.fixed_axis_idx == 1: # Right / Horizontal
+                        target_ax = self.ax2
+                        if plot_type == "Polar":
+                            target_theta = self.theta_h
+                            target_db_arr = self.af_db_h
+                        else:
+                            target_theta = self.theta_deg_sorted_h
+                            target_db_arr = self.af_db_sorted_h
                 else:
-                    db = np.interp(self.fixed_x, self.theta_deg_sorted, self.af_db_sorted)
-                self.fixed_db = db
-                self.cursor_point = self.ax.scatter(self.fixed_x, self.fixed_db, color='red', s=50, zorder=10)
-                self.cursor_line = self.ax.axvline(self.fixed_x, color='red', linestyle='--')
-                # Update cursor text
-                angle_deg = np.rad2deg(self.fixed_x) if plot_type == "Polar" else self.fixed_x
-                dir_dbi = 10 * np.log10(self.D_linear) + db if self.D_linear > 0 else 0
-                self.cursor_text = f"Cursor: ({angle_deg:.1f}°, {db:.1f}dB), D(°)={dir_dbi:.1f}dBi"
+                    target_ax = self.ax
+                    if plot_type == "Polar":
+                        target_theta = self.theta_plot
+                        target_db_arr = self.af_db_plot
+                    else:
+                        target_theta = self.theta_deg_sorted
+                        target_db_arr = self.af_db_sorted
+
+                if target_ax and target_theta is not None and target_db_arr is not None:
+                    if plot_type == "Polar":
+                        db = np.interp(self.fixed_x, target_theta, target_db_arr)
+                    else:
+                        db = np.interp(self.fixed_x, target_theta, target_db_arr)
+                    
+                    self.fixed_db = db
+                    
+                    # Create visuals on the target axis
+                    pt = target_ax.scatter(self.fixed_x, self.fixed_db, color='red', s=50, zorder=10)
+                    ln = target_ax.axvline(self.fixed_x, color='red', linestyle='--')
+                    
+                    # Store references
+                    if view == "Both":
+                        if self.fixed_axis_idx == 0:
+                            self.cursor_point1 = pt
+                            self.cursor_line1 = ln
+                        else:
+                            self.cursor_point2 = pt
+                            self.cursor_line2 = ln
+                    else:
+                        self.cursor_point = pt
+                        self.cursor_line = ln
+
+                    # Update cursor text
+                    angle_deg = np.rad2deg(self.fixed_x) if plot_type == "Polar" else self.fixed_x
+                    dir_dbi = 10 * np.log10(self.D_linear) + db if self.D_linear > 0 else 0
+                    txt = f"Cursor: ({angle_deg:.1f}°, {db:.1f}dB), D(°)={dir_dbi:.1f}dBi"
+                    
+                    if view == "Both":
+                        if self.fixed_axis_idx == 0: self.cursor_text1 = txt
+                        else: self.cursor_text2 = txt
+                    else:
+                        self.cursor_text = txt
+                else:
+                    # If we can't restore (e.g. switched view and lost context), unfreeze
+                    self.fixed_cursor = False
+                    self.fixed_axis_idx = None
             
             self.update_title()
             self.canvas.draw()
