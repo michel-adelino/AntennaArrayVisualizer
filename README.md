@@ -2,6 +2,8 @@
 
 A simple desktop application to calculate and visualize the radiation pattern of linear antenna arrays. This project was developed for the Electromagnetism course (22.21) at Instituto Tecnológico de Buenos Aires (ITBA).
 
+![GUI Preview](docs/gui-preview.png)
+
 ## Features
 
 *   Calculate and visualize radiation patterns for linear antenna arrays using the Multiplication Theorem.
