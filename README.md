@@ -2,12 +2,25 @@
 
 A simple desktop application to calculate and visualize the radiation pattern of linear antenna arrays. This project was developed for the Electromagnetism course (22.21) at Instituto Tecnológico de Buenos Aires (ITBA).
 
+![GUI Preview](docs/gui-preview.png)
+
 ## Features
 
-*   Calculate the radiation pattern for a linear array of isotropic antennas.
-*   Customize the number of antennas (N).
-*   Adjust the separation between antennas in fractions of a wavelength (d/λ).
-*   Display the resulting Array Factor in a real-time polar plot.
+*   Calculate and visualize radiation patterns for linear antenna arrays using the Multiplication Theorem.
+*   Support for multiple element types: Isotropic, Dipole (λ/2), and Monopole (λ/4).
+*   Adjustable parameters:
+    *   Number of antennas (N).
+    *   Separation between antennas (d/λ).
+    *   Progressive phase shift (β in degrees) for beam steering.
+    *   Current intensities for each element (supports uniform or custom distributions).
+*   Multiple views: Vertical (Elevation/Theta) and Horizontal (Azimuth/Phi) planes.
+*   Plot types: Polar (directional) and Cartesian (rectangular) coordinate systems.
+*   Customizable plot settings:
+    *   Dynamic range (dB floor).
+    *   Tick step for grid lines.
+    *   Angle step for axis labels.
+*   Interactive tooltips for parameter guidance.
+*   Navigation toolbar for zooming, panning, and saving plots.
 
 ## Authors
 

@@ -4,7 +4,7 @@ class AntennaCalculator:
     def __init__(self):
         pass
 
-    def calculate_pattern(self, N, d_lambda, beta_deg, element_type, currents):
+    def calculate_pattern(self, N, d_lambda, beta_deg, element_type, currents, view="Vertical (XZ)"):
         """
         Calculates the total pattern using the Multiplication Theorem.
         
@@ -14,33 +14,43 @@ class AntennaCalculator:
             beta_deg (float): Phase difference in degrees
             element_type (str): "Isotropic", "Dipole (lambda/2)", or "Monopole (lambda/4)"
             currents (array): Amplitude/Intensity for each element
+            view (str): The plane to calculate, "Vertical (XZ)" or "Horizontal (XY)"
         """
-        # Theta from 0 to 2pi
-        theta = np.linspace(0, 2 * np.pi, 1000)
-        
+        n_points = 1000
+        is_horizontal = "Horizontal" in view
+
         k = 2 * np.pi
         beta = np.deg2rad(beta_deg)
-        
-        # --- 1. ARRAY FACTOR (AF) ---
-        # Use centered indices for symmetry: -(N-1)/2 to (N-1)/2
         indices = np.arange(N) - (N - 1) / 2
         
-        AF = np.zeros_like(theta, dtype=complex)
+        AF = np.zeros(n_points, dtype=complex)
+
+        if is_horizontal:
+            # Horizontal Plane (XY): Assume array is along the X-axis
+            # The plot variable is phi (azimuth), theta is fixed at 90 deg.
+            phi_plot = np.linspace(0, 2 * np.pi, n_points)
+            theta_for_ef_calc = np.full(n_points, np.pi / 2)
+            
+            # Phase term depends on phi
+            psi = k * d_lambda * np.sin(phi_plot) + beta
+            theta_plot = phi_plot
+
+        else: # Vertical Plane (XZ): Assume array is along the Z-axis
+            # The plot variable is theta (elevation), phi is fixed at 0 deg.
+            theta_plot = np.linspace(0, 2 * np.pi, n_points)
+            theta_for_ef_calc = theta_plot
+            
+            # Phase term depends on theta
+            psi = k * d_lambda * np.cos(theta_plot) + beta
         
-        # psi = k * d * cos(theta) + beta
-        # NOTE: theta=0 is the Z-axis (Up)
-        psi = k * d_lambda * np.cos(theta) + beta
-        
-        # Summation with individual currents
+        # --- 1. ARRAY FACTOR (AF) ---
         for i, n in enumerate(indices):
-            # currents[i] is the magnitude for the n-th element
             AF += currents[i] * np.exp(1j * n * psi)
             
         # --- 2. ELEMENT FACTOR (EF) ---
-        EF = self._get_element_factor(theta, element_type)
+        EF = self._get_element_factor(theta_for_ef_calc, element_type)
         
         # --- 3. TOTAL FIELD ---
-        # Pattern = |AF| * |EF|
         total_field = np.abs(AF) * EF
         
         # Normalization
@@ -49,7 +59,7 @@ class AntennaCalculator:
         else:
             total_norm = total_field
 
-        return theta, total_norm
+        return theta_plot, total_norm
 
     def _get_element_factor(self, theta, el_type):
         """Calculates the normalized pattern of the individual element."""
