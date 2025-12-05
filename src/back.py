@@ -32,7 +32,7 @@ class AntennaCalculator:
             theta_for_ef_calc = np.full(n_points, np.pi / 2)
             
             # Phase term depends on phi
-            psi = k * d_lambda * np.cos(phi_plot) + beta
+            psi = k * d_lambda * np.sin(phi_plot) + beta
             theta_plot = phi_plot
 
         else: # Vertical Plane (XZ): Assume array is along the Z-axis
