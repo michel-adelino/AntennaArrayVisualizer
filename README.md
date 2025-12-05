@@ -19,6 +19,8 @@ A simple desktop application to calculate and visualize the radiation pattern of
     *   Dynamic range (dB floor).
     *   Tick step for grid lines.
     *   Angle step for axis labels.
+*   Display of maximum directivity and Half-Power Beamwidth (HPBW).
+*   Interactive cursor showing directivity at the selected direction.
 *   Interactive tooltips for parameter guidance.
 *   Navigation toolbar for zooming, panning, and saving plots.
 
