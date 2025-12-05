@@ -319,6 +319,10 @@ class App(ctk.CTk):
                 else:
                     return
             if self.fixed_cursor:
+                # Save current fixed position as last mobile
+                if self.fixed_x is not None and self.fixed_db is not None:
+                    self.last_x = self.fixed_x
+                    self.last_db = self.fixed_db
                 self.fixed_cursor = False
                 self.cursor_text = ""
                 self.fixed_x = None
@@ -327,11 +331,13 @@ class App(ctk.CTk):
                     self.cursor_line.set_visible(False)
                 if self.cursor_point:
                     self.cursor_point.set_visible(False)
-                # Restore last mobile cursor if exists
+                # Restore last mobile cursor
                 if self.last_x is not None and self.last_db is not None:
                     self.cursor_point = self.ax.scatter(self.last_x, self.last_db, color='red', s=50, zorder=10)
                     self.cursor_line = self.ax.axvline(self.last_x, color='red', linestyle='--')
-                    self.cursor_text = f"Cursor: {np.rad2deg(self.last_x):.1f}°, {self.last_db:.1f} dB, Dir: {10 * np.log10(self.D) + self.last_db:.1f} dBi" if self.seg_plot_type.get() == "Polar" else f"Cursor: {self.last_x:.1f}°, {self.last_db:.1f} dB, Dir: {10 * np.log10(self.D) + self.last_db:.1f} dBi"
+                    angle_deg_for_text = np.rad2deg(self.last_x) if self.seg_plot_type.get() == "Polar" else self.last_x
+                    dir_dbi = 10 * np.log10(self.D) + self.last_db if self.D > 0 else 0
+                    self.cursor_text = f"Cursor: {angle_deg_for_text:.1f}°, {self.last_db:.1f} dB, Dir: {dir_dbi:.1f} dBi"
             else:
                 self.fixed_cursor = True
                 if self.seg_plot_type.get() == "Polar":
@@ -342,8 +348,6 @@ class App(ctk.CTk):
                 self.cursor_text = f"Cursor: {angle_deg:.1f}°, {db:.1f} dB, Dir: {dir_dbi:.1f} dBi"
                 self.fixed_x = x_val
                 self.fixed_db = db
-                self.last_x = None  # Clear last mobile
-                self.last_db = None
                 if self.cursor_point:
                     self.cursor_point.set_offsets([x_val, db])
                 else:
