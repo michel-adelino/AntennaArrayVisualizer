@@ -171,14 +171,15 @@ class App(ctk.CTk):
         val_lbl = ctk.CTkLabel(self.frame_controls, text=f"{vdef}{'°' if 'Angle' in label else ' dB'}", width=50, anchor="e")
         val_lbl.grid(row=r, column=1, sticky="e", padx=10)
         
-        def handler(val, l=val_lbl, is_deg="Angle" in label):
-            l.configure(text=f"{int(val)}{'°' if is_deg else ' dB'}")
+        is_deg = "Angle" in label
+        def handler(val):
+            val_lbl.configure(text=f"{int(val)}{'°' if is_deg else ' dB'}")
             if self.update_timer: self.after_cancel(self.update_timer)
             self.update_timer = self.after(400, self.update_plot)
-            
+        
         slider = ctk.CTkSlider(self.frame_controls, from_=vmin, to=vmax, number_of_steps=(vmax-vmin))
         slider.set(vdef)
-        slider.configure(command=lambda v: handler(v))
+        slider.configure(command=handler)
         slider.grid(row=r+1, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 10))
         setattr(self, var_name, slider)
 
