@@ -394,12 +394,14 @@ class App(ctk.CTk):
             self.D_linear = d_lin # Store for cursor usage
 
             # --- CALCULATE PLOT DATA (VISUALIZATION) ---
-            theta, total_linear = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view=view, array_axis=array_axis)
-            af_db = self.calculator.convert_to_db(total_linear, dynamic_range=dyn_range)
-            
-            # Store for cursor interpolation
-            self.theta_plot = theta
-            self.af_db_plot = af_db
+            if view != "Both":
+                theta, total_linear = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view=view, array_axis=array_axis)
+                af_db = self.calculator.convert_to_db(total_linear, dynamic_range=dyn_range)
+                self.theta_plot = theta
+                self.af_db_plot = af_db
+            else:
+                self.theta_plot = None
+                self.af_db_plot = None
 
             # --- PLOTTING ---
             self.fig.clear()
@@ -525,6 +527,9 @@ class App(ctk.CTk):
                     self.ax2.set_title("Horizontal (XY)", fontsize=10)
                     
                     self.ax = self.ax1  # For compatibility
+                    
+                    self.theta_deg_sorted = None
+                    self.af_db_sorted = None
                     
                 else:
                     self.ax = self.fig.add_subplot(111)
