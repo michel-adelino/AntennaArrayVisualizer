@@ -111,6 +111,17 @@ class App(ctk.CTk):
         self.lbl_tick_val.pack(pady=(0, 5))
         self.slider_tick.configure(command=self._tick_slider_event_handler)
 
+        # Angle Step
+        self.lbl_angle = ctk.CTkLabel(self.frame_controls, text="Angle Step (°):")
+        self.lbl_angle.pack(pady=(10, 0))
+        self.slider_angle = ctk.CTkSlider(self.frame_controls, from_=5, to=90, number_of_steps=17)
+        self.slider_angle.set(30)
+        self.slider_angle.pack(pady=5)
+        
+        self.lbl_angle_val = ctk.CTkLabel(self.frame_controls, text="30°")
+        self.lbl_angle_val.pack(pady=(0, 5))
+        self.slider_angle.configure(command=self._angle_slider_event_handler)
+
         # Calculate Button
         self.btn_calc = ctk.CTkButton(self.frame_controls, text="CALCULATE PATTERN", 
                                       command=self.update_plot,
@@ -149,6 +160,15 @@ class App(ctk.CTk):
             
         self.update_timer = self.after(400, self.update_plot)
 
+    def _angle_slider_event_handler(self, value):
+        """Handles angle slider value changes with a debounce timer to update the plot."""
+        self.lbl_angle_val.configure(text=f"{int(value)}°")
+        
+        if self.update_timer is not None:
+            self.after_cancel(self.update_timer)
+            
+        self.update_timer = self.after(400, self.update_plot)
+
     def update_plot(self):
         try:
             # Get simple numeric inputs
@@ -159,6 +179,7 @@ class App(ctk.CTk):
             view = self.combo_view.get()
             dyn_range = int(self.slider_range.get())
             tick_step = int(self.slider_tick.get())
+            angle_step = int(self.slider_angle.get())
             plot_type = self.seg_plot_type.get()
 
             # Parse Currents Input (CSV string)
@@ -192,7 +213,7 @@ class App(ctk.CTk):
                 self.ax.set_theta_zero_location('N')
                 self.ax.set_theta_direction(-1)
                 
-                angles_deg = np.arange(0, 360, 30)
+                angles_deg = np.arange(0, 360, angle_step)
                 labels = [f'{d}°' if d <= 180 else f'{d - 360}°' for d in angles_deg]
                 if 180 in angles_deg:
                     labels[list(angles_deg).index(180)] = '±180°'
@@ -219,6 +240,8 @@ class App(ctk.CTk):
                 self.ax.set_xlim(-180, 180)
                 self.ax.set_ylim(-dyn_range, 0)
                 self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
+                self.ax.set_xticks(np.arange(-180, 181, angle_step))
+                self.ax.tick_params(axis='x', rotation=45)
 
             # Update title
             title_text = f"Pattern ({'Horizontal' if 'Horizontal' in view else 'Vertical'}): {el_type}\nN={N}, d={d}λ, β={beta}°"
