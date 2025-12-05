@@ -84,11 +84,6 @@ class App(ctk.CTk):
         self.lbl_title.grid(row=r, column=0, columnspan=2, pady=(15, 10))
         r += 1
         
-        # Geometry Info Label
-        self.lbl_geo = ctk.CTkLabel(self.frame_controls, text="Geometry: Vertical (Z-Axis)", font=("Arial", 12, "bold"), text_color="#4ea5f5")
-        self.lbl_geo.grid(row=r, column=0, columnspan=2, pady=(0, 5))
-        r += 1
-        
         self.lbl_hint = ctk.CTkLabel(self.frame_controls, text="(Hover labels for help)", font=("Arial", 11), text_color="gray")
         self.lbl_hint.grid(row=r, column=0, columnspan=2, pady=(0, 10))
         r += 1
@@ -110,6 +105,14 @@ class App(ctk.CTk):
         self.combo_type = ctk.CTkComboBox(self.frame_controls, values=["Isotropic", "Dipole (λ/2)", "Monopole (λ/4)"], command=lambda v: self.update_plot())
         self.combo_type.set("Isotropic")
         self.combo_type.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
+        r += 1
+
+        self.lbl_axis = ctk.CTkLabel(self.frame_controls, text="Array Axis:", cursor="hand2")
+        self.lbl_axis.grid(row=r, column=0, sticky="e", padx=5, pady=5)
+        CTkTooltip(self.lbl_axis, "Axis along which the array is oriented.\nZ: Vertical (elevation beamforming)\nX: Horizontal (azimuth beamforming)")
+        self.combo_axis = ctk.CTkComboBox(self.frame_controls, values=["Z (Vertical)", "X (Horizontal)"], command=lambda v: self.update_plot())
+        self.combo_axis.set("Z (Vertical)")
+        self.combo_axis.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
         r += 1
 
         self.lbl_view = ctk.CTkLabel(self.frame_controls, text="View:", cursor="hand2")
@@ -284,7 +287,7 @@ class App(ctk.CTk):
             self.ax.set_title(f"{base}\n{self.cursor_text}", va='bottom', fontsize=10)
 
     # --- 3D INSET LOGIC ---
-    def draw_3d_inset(self, is_horizontal):
+    def draw_3d_inset(self, is_horizontal, array_axis='Z'):
         """Draws a mini 3D plot to show array orientation and cut plane."""
         # Add inset axes at bottom left (0.0, 0.0) with width/height 0.25
         ax_geo = self.fig.add_axes([0.0, 0.0, 0.25, 0.25], projection='3d')
@@ -298,14 +301,19 @@ class App(ctk.CTk):
         ax_geo.quiver(0,0,0, 0,len_arrow,0, color='g', arrow_length_ratio=0.2, linewidth=1) # Y
         ax_geo.text(0, len_arrow, 0, "Y", color='g', fontsize=8)
         
-        # Z Axis (Array Axis) - Thicker
-        ax_geo.quiver(0,0,0, 0,0,len_arrow, color='k', arrow_length_ratio=0.2, linewidth=2) # Z
-        ax_geo.text(0, 0, len_arrow, "Z", color='k', fontsize=9, fontweight='bold')
-
-        # 2. Draw Array Elements (Stick figure along Z)
-        # Represent a generic 4-element array
-        z_pos = np.linspace(-0.8, 0.8, 4)
-        ax_geo.scatter(np.zeros(4), np.zeros(4), z_pos, color='black', s=15, alpha=1.0)
+        # Array Axis - Thicker
+        if array_axis == 'X':
+            ax_geo.quiver(0,0,0, len_arrow,0,0, color='k', arrow_length_ratio=0.2, linewidth=2) # X
+            ax_geo.text(len_arrow, 0, 0, "X", color='k', fontsize=9, fontweight='bold')
+            # Draw Array Elements along X
+            x_pos = np.linspace(-0.8, 0.8, 4)
+            ax_geo.scatter(x_pos, np.zeros(4), np.zeros(4), color='black', s=15, alpha=1.0)
+        else:
+            ax_geo.quiver(0,0,0, 0,0,len_arrow, color='k', arrow_length_ratio=0.2, linewidth=2) # Z
+            ax_geo.text(0, 0, len_arrow, "Z", color='k', fontsize=9, fontweight='bold')
+            # Draw Array Elements along Z
+            z_pos = np.linspace(-0.8, 0.8, 4)
+            ax_geo.scatter(np.zeros(4), np.zeros(4), z_pos, color='black', s=15, alpha=1.0)
 
         # 3. Draw Cut Plane Indicator
         t = np.linspace(0, 2*np.pi, 60)
@@ -350,6 +358,7 @@ class App(ctk.CTk):
             tick_step = int(self.slider_tick.get())
             angle_step = int(self.slider_angle.get())
             plot_type = self.seg_plot_type.get()
+            array_axis = self.combo_axis.get()
 
             # Currents Parsing
             raw_curr = self.entry_currents.get()
@@ -362,13 +371,13 @@ class App(ctk.CTk):
 
             # --- CALCULATE METRICS (PHYSICS) ---
             # Calculate D and HPBW using the rigorous 3D model (Vertical cut integration)
-            d_lin, hpbw = self.calculator.calculate_metrics(N, d, beta, el_type, currents)
+            d_lin, hpbw = self.calculator.calculate_metrics(N, d, beta, el_type, currents, array_axis=array_axis)
             d_dbi = 10 * np.log10(d_lin) if d_lin > 0 else 0
             
             self.D_linear = d_lin # Store for cursor usage
 
             # --- CALCULATE PLOT DATA (VISUALIZATION) ---
-            theta, total_linear = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view=view)
+            theta, total_linear = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view=view, array_axis=array_axis)
             af_db = self.calculator.convert_to_db(total_linear, dynamic_range=dyn_range)
             
             # Store for cursor interpolation
@@ -424,7 +433,8 @@ class App(ctk.CTk):
             # --- DRAW 3D ORIENTATION INSET ---
             if self.chk_3d.get():
                 is_horiz = "Horizontal" in view
-                self.draw_3d_inset(is_horiz)
+                axis_letter = 'X' if 'X' in array_axis else 'Z'
+                self.draw_3d_inset(is_horiz, axis_letter)
             
             # Update fixed cursor db and create visuals
             if self.fixed_cursor and self.fixed_x is not None:
