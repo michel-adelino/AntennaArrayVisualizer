@@ -2,8 +2,46 @@ import customtkinter as ctk
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import numpy as np
+import tkinter as tk
 from src.back import AntennaCalculator
 
+# --- CLASE TOOLTIP PERSONALIZADA ---
+class CTkTooltip:
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tooltip_window = None
+        self.widget.bind("<Enter>", self.show_tooltip)
+        self.widget.bind("<Leave>", self.hide_tooltip)
+
+    def show_tooltip(self, event=None):
+        if self.tooltip_window or not self.text:
+            return
+        
+        # Coordenadas
+        x, y, _, _ = self.widget.bbox("insert")
+        x += self.widget.winfo_rootx() + 25
+        y += self.widget.winfo_rooty() + 25
+        
+        # Crear ventana flotante
+        self.tooltip_window = tk.Toplevel(self.widget)
+        self.tooltip_window.wm_overrideredirect(True) # Sin bordes
+        self.tooltip_window.wm_geometry(f"+{x}+{y}")
+        
+        # Label interno
+        label = tk.Label(self.tooltip_window, text=self.text, justify='left',
+                         background="#2b2b2b", fg="#ffffff", # Colores Dark Theme
+                         relief='solid', borderwidth=1,
+                         font=("Arial", 10, "normal"),
+                         padx=5, pady=2)
+        label.pack(ipadx=1)
+
+    def hide_tooltip(self, event=None):
+        if self.tooltip_window:
+            self.tooltip_window.destroy()
+            self.tooltip_window = None
+
+# --- APLICACIÓN PRINCIPAL ---
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -25,14 +63,11 @@ class App(ctk.CTk):
         self.frame_controls = ctk.CTkFrame(self, width=280)
         self.frame_controls.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
         
-        # Configurar 2 columnas: 
-        # Col 0: Etiquetas (Labels)
-        # Col 1: Entradas (Inputs)
         self.frame_controls.grid_columnconfigure(0, weight=1) 
-        self.frame_controls.grid_columnconfigure(1, weight=2) # Un poco más de peso al input
+        self.frame_controls.grid_columnconfigure(1, weight=2) 
 
         # --- PARAMETERS (GRID LAYOUT) ---
-        r = 0 # Contador de filas
+        r = 0 
 
         # Title
         self.lbl_title = ctk.CTkLabel(self.frame_controls, text="Parameters", font=("Arial", 20, "bold"))
@@ -40,8 +75,10 @@ class App(ctk.CTk):
         r += 1
 
         # 1. N Antennas
-        self.lbl_n = ctk.CTkLabel(self.frame_controls, text="N Antennas:")
+        # FIX: "hand2" es compatible con Windows, "help" crashea
+        self.lbl_n = ctk.CTkLabel(self.frame_controls, text="N Antennas:", cursor="hand2") 
         self.lbl_n.grid(row=r, column=0, sticky="e", padx=5, pady=5)
+        CTkTooltip(self.lbl_n, "Total number of radiating elements\nin the array.")
         
         self.entry_n = ctk.CTkEntry(self.frame_controls)
         self.entry_n.insert(0, "4")
@@ -50,8 +87,9 @@ class App(ctk.CTk):
         r += 1
 
         # 2. Separation
-        self.lbl_d = ctk.CTkLabel(self.frame_controls, text="Sep (d/λ):")
+        self.lbl_d = ctk.CTkLabel(self.frame_controls, text="Separation (d/λ):", cursor="hand2")
         self.lbl_d.grid(row=r, column=0, sticky="e", padx=5, pady=5)
+        CTkTooltip(self.lbl_d, "Distance between elements relative\nto wavelength (e.g., 0.5 = λ/2).")
 
         self.entry_d = ctk.CTkEntry(self.frame_controls)
         self.entry_d.insert(0, "0.5")
@@ -60,8 +98,9 @@ class App(ctk.CTk):
         r += 1
 
         # 3. Phase Diff
-        self.lbl_beta = ctk.CTkLabel(self.frame_controls, text="Phase (β°):")
+        self.lbl_beta = ctk.CTkLabel(self.frame_controls, text="Phase (β°):", cursor="hand2")
         self.lbl_beta.grid(row=r, column=0, sticky="e", padx=5, pady=5)
+        CTkTooltip(self.lbl_beta, "Progressive phase shift between\nconsecutive elements (Beam steering) (degrees).")
 
         self.entry_beta = ctk.CTkEntry(self.frame_controls)
         self.entry_beta.insert(0, "0")
@@ -69,19 +108,21 @@ class App(ctk.CTk):
         self.entry_beta.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
         r += 1
         
-        # 4. Currents (Ocupa 2 filas para legibilidad: Label arriba, Input abajo)
-        self.lbl_currents = ctk.CTkLabel(self.frame_controls, text="Currents (CSV):")
-        self.lbl_currents.grid(row=r, column=0, sticky="w", padx=10, pady=(10, 0))
+        # 4. Currents
+        self.lbl_currents = ctk.CTkLabel(self.frame_controls, text="Intensities:", cursor="hand2")
+        self.lbl_currents.grid(row=r, column=0, sticky="e", padx=5, pady=5)
+        CTkTooltip(self.lbl_currents, "Current intensity for each element.\nExample for N=4: '1, 0.5, 0.5, 0.33'\nSingle value applies to all.")
         
-        self.entry_currents = ctk.CTkEntry(self.frame_controls, placeholder_text="1, 0.5, 1")
+        self.entry_currents = ctk.CTkEntry(self.frame_controls)
         self.entry_currents.insert(0, "1") 
         self.entry_currents.bind("<FocusOut>", lambda e: self.update_plot())
-        self.entry_currents.grid(row=r, column=1, sticky="ew", padx=5, pady=(10, 0))
+        self.entry_currents.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
         r += 1
 
         # 5. Element Type
-        self.lbl_type = ctk.CTkLabel(self.frame_controls, text="Type:")
+        self.lbl_type = ctk.CTkLabel(self.frame_controls, text="Type:", cursor="hand2")
         self.lbl_type.grid(row=r, column=0, sticky="e", padx=5, pady=5)
+        CTkTooltip(self.lbl_type, "Radiation pattern of the individual element.\n(Multiplied by Array Factor).")
 
         self.combo_type = ctk.CTkComboBox(self.frame_controls, 
                                           values=["Isotropic", "Dipole (λ/2)", "Monopole (λ/4)"],
@@ -91,8 +132,9 @@ class App(ctk.CTk):
         r += 1
 
         # View (Plane)
-        self.lbl_view = ctk.CTkLabel(self.frame_controls, text="View:")
+        self.lbl_view = ctk.CTkLabel(self.frame_controls, text="View:", cursor="hand2")
         self.lbl_view.grid(row=r, column=0, sticky="e", padx=5, pady=5)
+        CTkTooltip(self.lbl_view, "Cut Plane:\nVertical (Elevation/Theta)\nHorizontal (Azimuth/Phi)")
 
         self.combo_view = ctk.CTkComboBox(self.frame_controls,
                                           values=["Vertical (XZ)", "Horizontal (XY)"],
@@ -102,8 +144,9 @@ class App(ctk.CTk):
         r += 1
 
         # Plot Type
-        self.lbl_plot_type = ctk.CTkLabel(self.frame_controls, text="Plot:")
+        self.lbl_plot_type = ctk.CTkLabel(self.frame_controls, text="Plot:", cursor="hand2")
         self.lbl_plot_type.grid(row=r, column=0, sticky="e", padx=5, pady=5)
+        CTkTooltip(self.lbl_plot_type, "Coordinate system:\nPolar (Directional)\nCartesian (Rectangular analysis)")
 
         self.seg_plot_type = ctk.CTkSegmentedButton(self.frame_controls,
                                                      values=["Polar", "Cartesian"],
@@ -112,15 +155,14 @@ class App(ctk.CTk):
         self.seg_plot_type.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
         r += 1
 
-        # --- SLIDERS (Compactados) ---
-        
-        # Separador visual
+        # --- SLIDERS ---
         ctk.CTkFrame(self.frame_controls, height=2, fg_color="gray30").grid(row=r, column=0, columnspan=2, sticky="ew", padx=10, pady=10)
         r += 1
 
         # Dynamic Range
-        self.lbl_range = ctk.CTkLabel(self.frame_controls, text="Dyn Range:")
+        self.lbl_range = ctk.CTkLabel(self.frame_controls, text="Dynamic Range:", cursor="hand2")
         self.lbl_range.grid(row=r, column=0, sticky="w", padx=10)
+        CTkTooltip(self.lbl_range, "Minimum dB floor for the plot.\nValues below this are clipped.")
         
         self.lbl_range_val = ctk.CTkLabel(self.frame_controls, text="40 dB", width=50, anchor="e")
         self.lbl_range_val.grid(row=r, column=1, sticky="e", padx=10)
@@ -133,8 +175,9 @@ class App(ctk.CTk):
         r += 1
 
         # Tick Step
-        self.lbl_tick = ctk.CTkLabel(self.frame_controls, text="Tick Step:")
+        self.lbl_tick = ctk.CTkLabel(self.frame_controls, text="Tick Step:", cursor="hand2")
         self.lbl_tick.grid(row=r, column=0, sticky="w", padx=10)
+        CTkTooltip(self.lbl_tick, "Spacing between magnitude grid lines (dB).")
 
         self.lbl_tick_val = ctk.CTkLabel(self.frame_controls, text="10 dB", width=50, anchor="e")
         self.lbl_tick_val.grid(row=r, column=1, sticky="e", padx=10)
@@ -147,8 +190,9 @@ class App(ctk.CTk):
         r += 1
 
         # Angle Step
-        self.lbl_angle = ctk.CTkLabel(self.frame_controls, text="Angle Step:")
+        self.lbl_angle = ctk.CTkLabel(self.frame_controls, text="Angle Step:", cursor="hand2")
         self.lbl_angle.grid(row=r, column=0, sticky="w", padx=10)
+        CTkTooltip(self.lbl_angle, "Spacing between angle grid lines (degrees).")
 
         self.lbl_angle_val = ctk.CTkLabel(self.frame_controls, text="30°", width=50, anchor="e")
         self.lbl_angle_val.grid(row=r, column=1, sticky="e", padx=10)
@@ -160,7 +204,7 @@ class App(ctk.CTk):
         self.slider_angle.grid(row=r, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 10))
         r += 1
 
-        # Calculate Button (Grande al final)
+        # Calculate Button
         self.btn_calc = ctk.CTkButton(self.frame_controls, text="CALCULATE PATTERN", 
                                       command=self.update_plot,
                                       height=40,
@@ -168,6 +212,11 @@ class App(ctk.CTk):
         self.btn_calc.grid(row=r, column=0, columnspan=2, sticky="ew", padx=10, pady=20)
         r += 1
         
+        # Hint y Status
+        self.lbl_hint = ctk.CTkLabel(self.frame_controls, text="(Hover labels for help)", font=("Arial", 12), text_color="gray")
+        self.lbl_hint.grid(row=r, column=0, columnspan=2, pady=(0,5))
+        r += 1
+
         self.lbl_status = ctk.CTkLabel(self.frame_controls, text="Ready.", text_color="gray")
         self.lbl_status.grid(row=r, column=0, columnspan=2, pady=5)
 
