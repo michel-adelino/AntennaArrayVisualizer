@@ -187,12 +187,16 @@ class App(ctk.CTk):
         """Returns (angle_deg, db_val, plot_x) from event."""
         if self.seg_plot_type.get() == "Polar":
             if event.xdata is None: return None
+            if self.theta_plot is None or self.af_db_plot is None:
+                return None
             # Polar xdata is radians. Normalize to 0-360
             angle_rad = (event.xdata % (2 * np.pi) + 2 * np.pi) % (2 * np.pi)
             db = np.interp(angle_rad, self.theta_plot, self.af_db_plot)
             return np.rad2deg(angle_rad), db, angle_rad
         else:
             if event.xdata is None: return None
+            if self.theta_deg_sorted is None or self.af_db_sorted is None:
+                return None
             angle_deg = event.xdata
             db = np.interp(angle_deg, self.theta_deg_sorted, self.af_db_sorted)
             return angle_deg, db, angle_deg
