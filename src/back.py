@@ -8,7 +8,7 @@ class AntennaCalculator:
         """
         Calculates pattern based on Array Alignment (Z or X) and View (Vertical/Horizontal).
         """
-        n_points = 1000
+        n_points = 360
         # View identification
         is_view_horizontal = "Horizontal" in view  # Are we looking at Azimuth?
         
