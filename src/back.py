@@ -37,3 +37,23 @@ class AntennaCalculator:
             af_norm = af_mag
 
         return theta, af_norm
+    
+    def convert_to_db(self, af_linear, dynamic_range=40):
+        """
+        Converts the linear pattern to dB and applies a dynamic range.
+        
+        Args:
+            af_linear (array): Normalized linear values (0 to 1).
+            dynamic_range (float): Range in dB to display (e.g., 40).
+        """
+        # Avoid log(0) by adding a small epsilon
+        af_safe = af_linear + 1e-12
+        
+        # Convert to dB
+        af_db = 20 * np.log10(af_safe)
+        
+        # Apply the floor based on the selected dynamic range
+        floor_val = -abs(dynamic_range)
+        af_db_clipped = np.clip(af_db, floor_val, 0)
+        
+        return af_db_clipped
