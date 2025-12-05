@@ -369,5 +369,7 @@ class App(ctk.CTk):
             
             self.lbl_status.configure(text="Calculation successful.", text_color="green", font=("Arial", 12, "normal"))
 
+        except ValueError as ve:
+            self.lbl_status.configure(text=f"Error: {str(ve)}", text_color="red", font=("Arial", 13, "bold"))
         except Exception as e:
             self.lbl_status.configure(text=f"Error: {str(e)}", text_color="red", font=("Arial", 13, "bold"))
