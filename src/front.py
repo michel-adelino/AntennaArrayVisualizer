@@ -168,7 +168,7 @@ class App(ctk.CTk):
         lbl = ctk.CTkLabel(self.frame_controls, text=label, cursor="hand2")
         lbl.grid(row=r, column=0, sticky="w", padx=10)
         CTkTooltip(lbl, tooltip)
-        val_lbl = ctk.CTkLabel(self.frame_controls, text=f"{vdef}", width=50, anchor="e")
+        val_lbl = ctk.CTkLabel(self.frame_controls, text=f"{vdef}{'°' if 'Angle' in label else ' dB'}", width=50, anchor="e")
         val_lbl.grid(row=r, column=1, sticky="e", padx=10)
         
         def handler(val, l=val_lbl, is_deg="Angle" in label):
