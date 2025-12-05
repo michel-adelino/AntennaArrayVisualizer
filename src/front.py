@@ -155,7 +155,7 @@ class App(ctk.CTk):
                 self.ax.set_theta_zero_location('N')
                 self.ax.set_theta_direction(-1)
                 
-                angles_deg = np.arange(0, 360, 45)
+                angles_deg = np.arange(0, 360, 30)
                 labels = [f'{d}°' if d <= 180 else f'{d - 360}°' for d in angles_deg]
                 if 180 in angles_deg:
                     labels[list(angles_deg).index(180)] = '±180°'
