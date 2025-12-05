@@ -4,7 +4,7 @@ class AntennaCalculator:
     def __init__(self):
         pass
 
-    def calculate_pattern(self, N, d_lambda, beta_deg, element_type):
+    def calculate_pattern(self, N, d_lambda, beta_deg, element_type, currents):
         """
         Calculates the total pattern using the Multiplication Theorem.
         
@@ -13,12 +13,13 @@ class AntennaCalculator:
             d_lambda (float): Separation d/lambda
             beta_deg (float): Phase difference in degrees
             element_type (str): "Isotropic", "Dipole (lambda/2)", or "Monopole (lambda/4)"
+            currents (array): Amplitude/Intensity for each element
         """
         # Theta from 0 to 2pi
         theta = np.linspace(0, 2 * np.pi, 1000)
         
         k = 2 * np.pi
-        beta = np.deg2rad(beta_deg) # Convert user input to radians
+        beta = np.deg2rad(beta_deg)
         
         # --- 1. ARRAY FACTOR (AF) ---
         # Use centered indices for symmetry: -(N-1)/2 to (N-1)/2
@@ -30,13 +31,15 @@ class AntennaCalculator:
         # NOTE: theta=0 is the Z-axis (Up)
         psi = k * d_lambda * np.cos(theta) + beta
         
-        for n in indices:
-            AF += 1 * np.exp(1j * n * psi)
+        # Summation with individual currents
+        for i, n in enumerate(indices):
+            # currents[i] is the magnitude for the n-th element
+            AF += currents[i] * np.exp(1j * n * psi)
             
         # --- 2. ELEMENT FACTOR (EF) ---
         EF = self._get_element_factor(theta, element_type)
         
-        # --- 3. MULTIPLICACIÓN (Total Field) ---
+        # --- 3. TOTAL FIELD ---
         # Pattern = |AF| * |EF|
         total_field = np.abs(AF) * EF
         
@@ -53,34 +56,22 @@ class AntennaCalculator:
         if el_type == "Isotropic":
             return np.ones_like(theta)
         
-        # Both Dipole and Monopole share the base cos(cos)/sin shape
         elif "Dipole" in el_type or "Monopole" in el_type:
             
             # 1. Calculate denominator
             denominator = np.sin(theta)
             
-            # 2. FIX SINGULARITY:
-            # Define a small tolerance. If |sin(theta)| is less than this,
-            # assume we are at the null and do not divide.
+            # 2. FIX SINGULARITY (Avoid division by zero)
             tol = 1e-5 
-            
-            # Create an array filled with zeros (nulls by default)
             ef = np.zeros_like(theta)
-            
-            # Identify where it is safe to divide
             valid_mask = np.abs(denominator) > tol
             
-            # Only calculate the formula at valid indices
             numerator = np.cos((np.pi / 2) * np.cos(theta[valid_mask]))
             ef[valid_mask] = np.abs(numerator / denominator[valid_mask])
             
-            # (At indices where valid_mask is False, the value is already 0.0)
-            
             # --- MONOPOLE SPECIFIC LOGIC ---
             if "Monopole" in el_type:
-                # Mask out the bottom (90 to 270 deg)
-                # Note: theta is 0..2pi. 
-                # Upper hemisphere is 0..pi/2 AND 3pi/2..2pi
+                # Mask out the bottom hemisphere (90 to 270 deg)
                 mask_ground = (theta <= np.pi/2) | (theta >= 3*np.pi/2)
                 ef = ef * mask_ground
                 

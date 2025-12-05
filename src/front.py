@@ -10,7 +10,7 @@ class App(ctk.CTk):
 
         # Main window configuration
         self.title("Antenna Array Visualizer - ITBA 22.21")
-        self.geometry("1100x700")
+        self.geometry("1100x750")
         ctk.set_appearance_mode("Dark")
         ctk.set_default_color_theme("blue")
 
@@ -47,11 +47,17 @@ class App(ctk.CTk):
         self.entry_beta = ctk.CTkEntry(self.frame_controls)
         self.entry_beta.insert(0, "0")
         self.entry_beta.pack(pady=5)
+        
+        # 4. Currents
+        self.lbl_currents = ctk.CTkLabel(self.frame_controls, text="Currents (CSV, e.g., '1, 0.5, 1'):")
+        self.lbl_currents.pack(pady=(5, 0))
+        self.entry_currents = ctk.CTkEntry(self.frame_controls)
+        self.entry_currents.insert(0, "1") # Default uniform distribution
+        self.entry_currents.pack(pady=5)
 
-        # 4. Element Type
+        # 5. Element Type
         self.lbl_type = ctk.CTkLabel(self.frame_controls, text="Element Type:")
         self.lbl_type.pack(pady=(15, 0))
-        # Updated values to include Monopole
         self.combo_type = ctk.CTkComboBox(self.frame_controls, 
                                           values=["Isotropic", 
                                                   "Dipole (λ/2)", 
@@ -59,7 +65,7 @@ class App(ctk.CTk):
         self.combo_type.set("Isotropic")
         self.combo_type.pack(pady=5)
 
-        # 5. Dynamic Range
+        # 6. Dynamic Range
         self.lbl_range = ctk.CTkLabel(self.frame_controls, text="Dynamic Range (dB):")
         self.lbl_range.pack(pady=(20, 0))
         self.slider_range = ctk.CTkSlider(self.frame_controls, from_=10, to=80, number_of_steps=70)
@@ -98,20 +104,37 @@ class App(ctk.CTk):
 
     def update_plot(self):
         try:
-            # Get values
+            # 1. Get simple numeric inputs
             N = int(self.entry_n.get())
             d = float(self.entry_d.get())
             beta = float(self.entry_beta.get())
             el_type = self.combo_type.get()
             dyn_range = int(self.slider_range.get())
 
-            # Calculate pattern
-            theta, total_linear = self.calculator.calculate_pattern(N, d, beta, el_type)
+            # 2. Parse Currents Input (CSV string)
+            raw_currents = self.entry_currents.get()
+            
+            # Convert string "1, 0.5" -> list [1.0, 0.5]
+            if not raw_currents.strip(): 
+                current_list = [1.0] # Fallback if empty
+            else:
+                current_list = [float(x) for x in raw_currents.split(',')]
+            
+            # Logic: If user enters 1 value, broadcast to N. Else, require length N.
+            if len(current_list) == 1:
+                currents = np.full(N, current_list[0])
+            elif len(current_list) == N:
+                currents = np.array(current_list)
+            else:
+                raise ValueError(f"Currents count ({len(current_list)}) must match N ({N}) or be a single value.")
 
-            # Convert to dB
+            # 3. Calculate pattern
+            theta, total_linear = self.calculator.calculate_pattern(N, d, beta, el_type, currents)
+
+            # 4. Convert to dB
             af_db = self.calculator.convert_to_db(total_linear, dynamic_range=dyn_range)
 
-            # Plot Config
+            # 5. Plot Config
             self.ax.clear()
             self.ax.set_theta_zero_location('N')
             self.ax.set_theta_direction(-1)
@@ -131,7 +154,7 @@ class App(ctk.CTk):
             self.canvas.draw()
             self.lbl_status.configure(text="Calculation successful.", text_color="green")
 
-        except ValueError:
-            self.lbl_status.configure(text="Error: Check numeric inputs.", text_color="red")
+        except ValueError as ve:
+            self.lbl_status.configure(text=f"Error: {str(ve)}", text_color="red")
         except Exception as e:
             self.lbl_status.configure(text=f"Error: {str(e)}", text_color="red")
