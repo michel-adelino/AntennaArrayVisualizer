@@ -73,6 +73,15 @@ class App(ctk.CTk):
         self.combo_view.set("Vertical (XZ)")
         self.combo_view.pack(pady=5)
 
+        # Plot Type
+        self.lbl_plot_type = ctk.CTkLabel(self.frame_controls, text="Plot Type:")
+        self.lbl_plot_type.pack(pady=(10, 0))
+        self.seg_plot_type = ctk.CTkSegmentedButton(self.frame_controls,
+                                                     values=["Polar", "Cartesian"],
+                                                     command=lambda value: self.update_plot())
+        self.seg_plot_type.set("Polar")
+        self.seg_plot_type.pack(pady=5)
+
         # Dynamic Range
         self.lbl_range = ctk.CTkLabel(self.frame_controls, text="Dynamic Range (dB):")
         self.lbl_range.pack(pady=(20, 0))
@@ -98,17 +107,11 @@ class App(ctk.CTk):
         self.frame_plot = ctk.CTkFrame(self)
         self.frame_plot.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
         
-        self.initialize_plot()
-
-    def initialize_plot(self):
         self.fig = Figure(figsize=(5, 5), dpi=100)
-        self.ax = self.fig.add_subplot(111, projection='polar')
-        self.ax.set_title("Radiation Pattern", pad=20)
-        self.ax.grid(True)
-
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.frame_plot)
-        self.canvas.draw()
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
+
+        self.update_plot()
 
     def update_plot(self):
         try:
@@ -119,6 +122,7 @@ class App(ctk.CTk):
             el_type = self.combo_type.get()
             view = self.combo_view.get()
             dyn_range = int(self.slider_range.get())
+            plot_type = self.seg_plot_type.get()
 
             # Parse Currents Input (CSV string)
             raw_currents = self.entry_currents.get()
@@ -144,17 +148,40 @@ class App(ctk.CTk):
             af_db = self.calculator.convert_to_db(total_linear, dynamic_range=dyn_range)
 
             # Plot Config
-            self.ax.clear()
-            self.ax.set_theta_zero_location('N')
-            self.ax.set_theta_direction(-1)
-            self.ax.set_ylim(-dyn_range, 0)
+            self.fig.clear()
+
+            if plot_type == "Polar":
+                self.ax = self.fig.add_subplot(111, projection='polar')
+                self.ax.set_theta_zero_location('N')
+                self.ax.set_theta_direction(-1)
+                
+                angles_deg = np.arange(0, 360, 45)
+                labels = [f'{d}°' if d <= 180 else f'{d - 360}°' for d in angles_deg]
+                if 180 in angles_deg:
+                    labels[list(angles_deg).index(180)] = '±180°'
+                self.ax.set_thetagrids(angles_deg, labels)
+                
+                self.ax.set_ylim(-dyn_range, 0)
+                step = 10 if dyn_range > 30 else 5
+                self.ax.set_yticks(np.arange(-dyn_range, 1, step))
+                self.ax.plot(theta, af_db, color='#1f77b4', linewidth=2)
             
-            step = 10 if dyn_range > 30 else 5
-            self.ax.set_yticks(np.arange(-dyn_range, 1, step))
-            
-            # Plot Data
-            self.ax.plot(theta, af_db, color='#1f77b4', linewidth=2)
-            
+            else: # Cartesian
+                self.ax = self.fig.add_subplot(111)
+                theta_deg = np.rad2deg(theta)
+                theta_deg_shifted = np.copy(theta_deg)
+                theta_deg_shifted[theta_deg_shifted >= 180] -= 360
+                
+                sort_indices = np.argsort(theta_deg_shifted)
+                theta_deg_sorted = theta_deg_shifted[sort_indices]
+                af_db_sorted = af_db[sort_indices]
+                
+                self.ax.plot(theta_deg_sorted, af_db_sorted, color='#1f77b4', linewidth=2)
+                self.ax.set_xlabel("Angle (°)")
+                self.ax.set_ylabel("Normalized Power (dB)")
+                self.ax.set_xlim(-180, 180)
+                self.ax.set_ylim(-dyn_range, 0)
+
             # Update title
             title_text = f"Pattern ({'Horizontal' if 'Horizontal' in view else 'Vertical'}): {el_type}\nN={N}, d={d}λ, β={beta}°"
             self.ax.set_title(title_text, va='bottom', fontsize=10)
