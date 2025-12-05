@@ -73,6 +73,11 @@ class App(ctk.CTk):
         self.lbl_title = ctk.CTkLabel(self.frame_controls, text="Parameters", font=("Arial", 20, "bold"))
         self.lbl_title.grid(row=r, column=0, columnspan=2, pady=(15, 15))
         r += 1
+        
+        # Hint
+        self.lbl_hint = ctk.CTkLabel(self.frame_controls, text="(Hover labels for help)", font=("Arial", 12), text_color="gray")
+        self.lbl_hint.grid(row=r, column=0, columnspan=2, pady=(0,5))
+        r += 1
 
         # 1. N Antennas
         # FIX: "hand2" es compatible con Windows, "help" crashea
@@ -212,11 +217,7 @@ class App(ctk.CTk):
         self.btn_calc.grid(row=r, column=0, columnspan=2, sticky="ew", padx=10, pady=20)
         r += 1
         
-        # Hint y Status
-        self.lbl_hint = ctk.CTkLabel(self.frame_controls, text="(Hover labels for help)", font=("Arial", 12), text_color="gray")
-        self.lbl_hint.grid(row=r, column=0, columnspan=2, pady=(0,5))
-        r += 1
-
+        # Status Label
         self.lbl_status = ctk.CTkLabel(self.frame_controls, text="Ready.", text_color="gray")
         self.lbl_status.grid(row=r, column=0, columnspan=2, pady=5)
 
@@ -332,9 +333,9 @@ class App(ctk.CTk):
             self.fig.tight_layout()
             
             self.canvas.draw()
-            self.lbl_status.configure(text="Calculation successful.", text_color="green")
+            self.lbl_status.configure(text="Calculation successful.", text_color="green", font=("Arial", 12, "normal"))
 
         except ValueError as ve:
-            self.lbl_status.configure(text=f"Error: {str(ve)}", text_color="red")
+            self.lbl_status.configure(text=f"Error: {str(ve)}", text_color="red", font=("Arial", 13, "bold"))
         except Exception as e:
-            self.lbl_status.configure(text=f"Error: {str(e)}", text_color="red")
+            self.lbl_status.configure(text=f"Error: {str(e)}", text_color="red", font=("Arial", 13, "bold"))
