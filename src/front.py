@@ -104,7 +104,7 @@ class App(ctk.CTk):
         # 3. Phase Diff
         self.lbl_beta = ctk.CTkLabel(self.frame_controls, text="Phase (β°):", cursor="hand2")
         self.lbl_beta.grid(row=r, column=0, sticky="e", padx=5, pady=5)
-        CTkTooltip(self.lbl_beta, "Progressive phase shift between\nconsecutive elements (Beam steering) (degrees).")
+        CTkTooltip(self.lbl_beta, "Progressive phase shift between\nconsecutive elements (degrees).\nUsed for beam steering.")
 
         self.entry_beta = ctk.CTkEntry(self.frame_controls)
         self.entry_beta.insert(0, "0")
