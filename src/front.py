@@ -65,7 +65,15 @@ class App(ctk.CTk):
         self.combo_type.set("Isotropic")
         self.combo_type.pack(pady=5)
 
-        # 6. Dynamic Range
+        # View (Plane)
+        self.lbl_view = ctk.CTkLabel(self.frame_controls, text="View (Plane):")
+        self.lbl_view.pack(pady=(10, 0))
+        self.combo_view = ctk.CTkComboBox(self.frame_controls,
+                                          values=["Vertical (XZ)", "Horizontal (XY)"])
+        self.combo_view.set("Vertical (XZ)")
+        self.combo_view.pack(pady=5)
+
+        # Dynamic Range
         self.lbl_range = ctk.CTkLabel(self.frame_controls, text="Dynamic Range (dB):")
         self.lbl_range.pack(pady=(20, 0))
         self.slider_range = ctk.CTkSlider(self.frame_controls, from_=10, to=80, number_of_steps=70)
@@ -104,14 +112,15 @@ class App(ctk.CTk):
 
     def update_plot(self):
         try:
-            # 1. Get simple numeric inputs
+            # Get simple numeric inputs
             N = int(self.entry_n.get())
             d = float(self.entry_d.get())
             beta = float(self.entry_beta.get())
             el_type = self.combo_type.get()
+            view = self.combo_view.get()
             dyn_range = int(self.slider_range.get())
 
-            # 2. Parse Currents Input (CSV string)
+            # Parse Currents Input (CSV string)
             raw_currents = self.entry_currents.get()
             
             # Convert string "1, 0.5" -> list [1.0, 0.5]
@@ -128,13 +137,13 @@ class App(ctk.CTk):
             else:
                 raise ValueError(f"Currents count ({len(current_list)}) must match N ({N}) or be a single value.")
 
-            # 3. Calculate pattern
-            theta, total_linear = self.calculator.calculate_pattern(N, d, beta, el_type, currents)
+            # Calculate pattern
+            theta, total_linear = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view=view)
 
-            # 4. Convert to dB
+            # Convert to dB
             af_db = self.calculator.convert_to_db(total_linear, dynamic_range=dyn_range)
 
-            # 5. Plot Config
+            # Plot Config
             self.ax.clear()
             self.ax.set_theta_zero_location('N')
             self.ax.set_theta_direction(-1)
@@ -147,7 +156,7 @@ class App(ctk.CTk):
             self.ax.plot(theta, af_db, color='#1f77b4', linewidth=2)
             
             # Update title
-            title_text = f"Pattern: {el_type}\nN={N}, d={d}λ, β={beta}°"
+            title_text = f"Pattern ({'Horizontal' if 'Horizontal' in view else 'Vertical'}): {el_type}\nN={N}, d={d}λ, β={beta}°"
             self.ax.set_title(title_text, va='bottom', fontsize=10)
             self.ax.grid(True, alpha=0.5)
             
