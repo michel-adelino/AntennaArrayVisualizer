@@ -256,6 +256,9 @@ class App(ctk.CTk):
         self.update_timer = self.after(400, self.update_plot)
 
     def update_plot(self):
+        if hasattr(self, 'update_timer') and self.update_timer:
+            self.after_cancel(self.update_timer)
+            self.update_timer = None
         try:
             # Inputs
             N = int(self.entry_n.get())
