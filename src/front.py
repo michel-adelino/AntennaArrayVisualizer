@@ -420,6 +420,14 @@ class App(ctk.CTk):
                 self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
                 self.ax.plot(theta, af_db, color='#1f77b4', linewidth=2)
                 self.ax.grid(True, alpha=0.5)
+                
+                # Add axis direction labels
+                if "Horizontal" in view:
+                    directions = {'+X': 0, '+Y': np.pi/2, '-X': np.pi, '-Y': 3*np.pi/2}
+                else:
+                    directions = {'+X': 0, '+Z': np.pi/2, '-X': np.pi, '-Z': 3*np.pi/2}
+                for label, theta_rad in directions.items():
+                    self.ax.text(theta_rad, -2, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
             
             else: # Cartesian
                 self.ax = self.fig.add_subplot(111)
