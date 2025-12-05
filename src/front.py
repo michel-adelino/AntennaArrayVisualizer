@@ -128,6 +128,11 @@ class App(ctk.CTk):
         self.seg_plot_type.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
         r += 1
 
+        self.chk_3d = ctk.CTkCheckBox(self.frame_controls, text="Show 3D Orientation", command=self.update_plot)
+        self.chk_3d.select()  # Default to checked
+        self.chk_3d.grid(row=r, column=0, columnspan=2, pady=(5, 5))
+        r += 1
+
         # Separator
         ctk.CTkFrame(self.frame_controls, height=2, fg_color="gray30").grid(row=r, column=0, columnspan=2, sticky="ew", padx=10, pady=10)
         r += 1
@@ -417,8 +422,9 @@ class App(ctk.CTk):
             self.fig.tight_layout()
             
             # --- DRAW 3D ORIENTATION INSET ---
-            is_horiz = "Horizontal" in view
-            self.draw_3d_inset(is_horiz)
+            if self.chk_3d.get():
+                is_horiz = "Horizontal" in view
+                self.draw_3d_inset(is_horiz)
             
             # Update fixed cursor db and create visuals
             if self.fixed_cursor and self.fixed_x is not None:
