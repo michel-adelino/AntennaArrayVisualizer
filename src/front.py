@@ -6,6 +6,7 @@ import tkinter as tk
 from src.back import AntennaCalculator
 import os
 import sys
+from mpl_toolkits.mplot3d import Axes3D
 
 # --- CUSTOM TOOLTIP CLASS ---
 class CTkTooltip:
@@ -81,6 +82,11 @@ class App(ctk.CTk):
         r = 0 
         self.lbl_title = ctk.CTkLabel(self.frame_controls, text="Parameters", font=("Arial", 20, "bold"))
         self.lbl_title.grid(row=r, column=0, columnspan=2, pady=(15, 10))
+        r += 1
+        
+        # Geometry Info Label
+        self.lbl_geo = ctk.CTkLabel(self.frame_controls, text="Geometry: Vertical (Z-Axis)", font=("Arial", 12, "bold"), text_color="#4ea5f5")
+        self.lbl_geo.grid(row=r, column=0, columnspan=2, pady=(0, 5))
         r += 1
         
         self.lbl_hint = ctk.CTkLabel(self.frame_controls, text="(Hover labels for help)", font=("Arial", 11), text_color="gray")
@@ -272,6 +278,52 @@ class App(ctk.CTk):
             base = '\n'.join(curr.split('\n')[:2])
             self.ax.set_title(f"{base}\n{self.cursor_text}", va='bottom', fontsize=10)
 
+    # --- 3D INSET LOGIC ---
+    def draw_3d_inset(self, is_horizontal):
+        """Draws a mini 3D plot to show array orientation and cut plane."""
+        # Add inset axes at bottom left (0.0, 0.0) with width/height 0.25
+        ax_geo = self.fig.add_axes([0.0, 0.0, 0.25, 0.25], projection='3d')
+        ax_geo.set_axis_off() # floating look
+        
+        # 1. Draw Axis Arrows
+        len_arrow = 1.5
+        ax_geo.quiver(0,0,0, len_arrow,0,0, color='r', arrow_length_ratio=0.2, linewidth=1) # X
+        ax_geo.text(len_arrow, 0, 0, "X", color='r', fontsize=8)
+        
+        ax_geo.quiver(0,0,0, 0,len_arrow,0, color='g', arrow_length_ratio=0.2, linewidth=1) # Y
+        ax_geo.text(0, len_arrow, 0, "Y", color='g', fontsize=8)
+        
+        # Z Axis (Array Axis) - Thicker
+        ax_geo.quiver(0,0,0, 0,0,len_arrow, color='k', arrow_length_ratio=0.2, linewidth=2) # Z
+        ax_geo.text(0, 0, len_arrow, "Z", color='k', fontsize=9, fontweight='bold')
+
+        # 2. Draw Array Elements (Stick figure along Z)
+        # Represent a generic 4-element array
+        z_pos = np.linspace(-0.8, 0.8, 4)
+        ax_geo.scatter(np.zeros(4), np.zeros(4), z_pos, color='black', s=15, alpha=1.0)
+
+        # 3. Draw Cut Plane Indicator
+        t = np.linspace(0, 2*np.pi, 60)
+        if is_horizontal:
+            # Horizontal (XY) cut - Blue circle on XY plane
+            x_c = np.cos(t)
+            y_c = np.sin(t)
+            z_c = np.zeros_like(t)
+            ax_geo.plot(x_c, y_c, z_c, color='blue', linestyle='--', linewidth=1, alpha=0.8)
+        else:
+            # Vertical (XZ) cut - Blue circle on XZ plane
+            x_c = np.sin(t)
+            y_c = np.zeros_like(t)
+            z_c = np.cos(t)
+            ax_geo.plot(x_c, y_c, z_c, color='blue', linestyle='--', linewidth=1, alpha=0.8)
+
+        # Set limits to ensure aspect ratio
+        limit = 1.2
+        ax_geo.set_xlim(-limit, limit)
+        ax_geo.set_ylim(-limit, limit)
+        ax_geo.set_zlim(-limit, limit)
+        ax_geo.view_init(elev=20, azim=45)
+
     def update_plot(self):
         if hasattr(self, 'update_timer') and self.update_timer:
             self.after_cancel(self.update_timer)
@@ -363,6 +415,10 @@ class App(ctk.CTk):
             title_text = f"Pattern ({'Horizontal' if 'Horizontal' in view else 'Vertical'}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, HPBW={hpbw:.1f}°"
             self.ax.set_title(title_text, va='bottom', fontsize=10)
             self.fig.tight_layout()
+            
+            # --- DRAW 3D ORIENTATION INSET ---
+            is_horiz = "Horizontal" in view
+            self.draw_3d_inset(is_horiz)
             
             # Update fixed cursor db and create visuals
             if self.fixed_cursor and self.fixed_x is not None:
