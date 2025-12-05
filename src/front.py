@@ -476,25 +476,76 @@ class App(ctk.CTk):
                         self.ax.text(theta_rad, -2, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
             
             else: # Cartesian
-                self.ax = self.fig.add_subplot(111)
-                theta_deg = np.rad2deg(theta)
-                # Sort for interpolation/plotting
-                theta_deg_shifted = np.copy(theta_deg)
-                theta_deg_shifted[theta_deg_shifted >= 180] -= 360
-                sort_idx = np.argsort(theta_deg_shifted)
-                
-                self.theta_deg_sorted = theta_deg_shifted[sort_idx]
-                self.af_db_sorted = af_db[sort_idx]
-                
-                self.ax.plot(self.theta_deg_sorted, self.af_db_sorted, color='#1f77b4', linewidth=2)
-                self.ax.set_xlabel("Angle (°)")
-                self.ax.set_ylabel("Normalized Power (dB)")
-                self.ax.set_xlim(-180, 180)
-                self.ax.margins(x=0)
-                self.ax.set_ylim(-dyn_range, 0)
-                self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
-                self.ax.set_xticks(np.arange(-180, 181, angle_step))
-                self.ax.grid(True, alpha=0.5)
+                if view == "Both":
+                    # Plot both views side by side
+                    self.ax1 = self.fig.add_subplot(121)
+                    
+                    # Vertical view
+                    theta_v, total_linear_v = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Vertical (XZ)", array_axis=array_axis)
+                    af_db_v = self.calculator.convert_to_db(total_linear_v, dynamic_range=dyn_range)
+                    theta_deg_v = np.rad2deg(theta_v)
+                    theta_deg_shifted_v = np.copy(theta_deg_v)
+                    theta_deg_shifted_v[theta_deg_shifted_v >= 180] -= 360
+                    sort_idx_v = np.argsort(theta_deg_shifted_v)
+                    self.theta_deg_sorted_v = theta_deg_shifted_v[sort_idx_v]
+                    self.af_db_sorted_v = af_db_v[sort_idx_v]
+                    
+                    self.ax1.plot(self.theta_deg_sorted_v, self.af_db_sorted_v, color='#1f77b4', linewidth=2)
+                    self.ax1.set_xlabel("Angle (°)")
+                    self.ax1.set_ylabel("Normalized Power (dB)")
+                    self.ax1.set_xlim(-180, 180)
+                    self.ax1.margins(x=0)
+                    self.ax1.set_ylim(-dyn_range, 0)
+                    self.ax1.set_yticks(np.arange(-dyn_range, 1, tick_step))
+                    self.ax1.set_xticks(np.arange(-180, 181, angle_step))
+                    self.ax1.grid(True, alpha=0.5)
+                    self.ax1.set_title("Vertical (XZ)", fontsize=10)
+                    
+                    self.ax2 = self.fig.add_subplot(122)
+                    
+                    # Horizontal view
+                    theta_h, total_linear_h = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Horizontal (XY)", array_axis=array_axis)
+                    af_db_h = self.calculator.convert_to_db(total_linear_h, dynamic_range=dyn_range)
+                    theta_deg_h = np.rad2deg(theta_h)
+                    theta_deg_shifted_h = np.copy(theta_deg_h)
+                    theta_deg_shifted_h[theta_deg_shifted_h >= 180] -= 360
+                    sort_idx_h = np.argsort(theta_deg_shifted_h)
+                    self.theta_deg_sorted_h = theta_deg_shifted_h[sort_idx_h]
+                    self.af_db_sorted_h = af_db_h[sort_idx_h]
+                    
+                    self.ax2.plot(self.theta_deg_sorted_h, self.af_db_sorted_h, color='#1f77b4', linewidth=2)
+                    self.ax2.set_xlabel("Angle (°)")
+                    self.ax2.set_ylabel("Normalized Power (dB)")
+                    self.ax2.set_xlim(-180, 180)
+                    self.ax2.margins(x=0)
+                    self.ax2.set_ylim(-dyn_range, 0)
+                    self.ax2.set_yticks(np.arange(-dyn_range, 1, tick_step))
+                    self.ax2.set_xticks(np.arange(-180, 181, angle_step))
+                    self.ax2.grid(True, alpha=0.5)
+                    self.ax2.set_title("Horizontal (XY)", fontsize=10)
+                    
+                    self.ax = self.ax1  # For compatibility
+                    
+                else:
+                    self.ax = self.fig.add_subplot(111)
+                    theta_deg = np.rad2deg(theta)
+                    # Sort for interpolation/plotting
+                    theta_deg_shifted = np.copy(theta_deg)
+                    theta_deg_shifted[theta_deg_shifted >= 180] -= 360
+                    sort_idx = np.argsort(theta_deg_shifted)
+                    
+                    self.theta_deg_sorted = theta_deg_shifted[sort_idx]
+                    self.af_db_sorted = af_db[sort_idx]
+                    
+                    self.ax.plot(self.theta_deg_sorted, self.af_db_sorted, color='#1f77b4', linewidth=2)
+                    self.ax.set_xlabel("Angle (°)")
+                    self.ax.set_ylabel("Normalized Power (dB)")
+                    self.ax.set_xlim(-180, 180)
+                    self.ax.margins(x=0)
+                    self.ax.set_ylim(-dyn_range, 0)
+                    self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
+                    self.ax.set_xticks(np.arange(-180, 181, angle_step))
+                    self.ax.grid(True, alpha=0.5)
 
             if view == "Both":
                 title_text = f"Pattern (Both Views, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, HPBW={hpbw:.1f}°"
