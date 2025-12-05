@@ -55,25 +55,34 @@ class AntennaCalculator:
         
         # Both Dipole and Monopole share the base cos(cos)/sin shape
         elif "Dipole" in el_type or "Monopole" in el_type:
-            # Assuming alignment with Z-axis
-            numerator = np.cos((np.pi / 2) * np.cos(theta))
+            
+            # 1. Calculate denominator
             denominator = np.sin(theta)
             
-            # Handle division by zero (at poles)
-            with np.errstate(divide='ignore', invalid='ignore'):
-                ef = np.abs(numerator / denominator)
+            # 2. FIX SINGULARITY:
+            # Define a small tolerance. If |sin(theta)| is less than this,
+            # assume we are at the null and do not divide.
+            tol = 1e-5 
             
-            # Fix numerical artifacts (NaNs/Infs becomes 0)
-            ef = np.nan_to_num(ef, nan=0.0, posinf=0.0, neginf=0.0)
+            # Create an array filled with zeros (nulls by default)
+            ef = np.zeros_like(theta)
+            
+            # Identify where it is safe to divide
+            valid_mask = np.abs(denominator) > tol
+            
+            # Only calculate the formula at valid indices
+            numerator = np.cos((np.pi / 2) * np.cos(theta[valid_mask]))
+            ef[valid_mask] = np.abs(numerator / denominator[valid_mask])
+            
+            # (At indices where valid_mask is False, the value is already 0.0)
             
             # --- MONOPOLE SPECIFIC LOGIC ---
             if "Monopole" in el_type:
-                # Infinite Ground Plane Assumption:
-                # Radiation exists only in the upper hemisphere (0 to pi/2)
-                # In our 0-2pi array, this corresponds to 0-90 deg and 270-360 deg.
-                # We mask out the bottom (90 to 270 deg).
-                mask = (theta <= np.pi/2) | (theta >= 3*np.pi/2)
-                ef = ef * mask
+                # Mask out the bottom (90 to 270 deg)
+                # Note: theta is 0..2pi. 
+                # Upper hemisphere is 0..pi/2 AND 3pi/2..2pi
+                mask_ground = (theta <= np.pi/2) | (theta >= 3*np.pi/2)
+                ef = ef * mask_ground
                 
             return ef
             
