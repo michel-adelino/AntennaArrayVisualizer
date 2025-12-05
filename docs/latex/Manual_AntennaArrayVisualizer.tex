@@ -1,0 +1,192 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish,mexico]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{graphicx}
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{float}
+\usepackage{parskip}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage[final]{microtype}
+
+% Configuración de hipervínculos
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan,
+}
+
+% Configuración de márgenes
+\geometry{top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm}
+
+% Configuración de encabezado y pie de página
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\small Manual de Usuario - Visualizador de Arreglos}
+\lhead{\small ITBA - 22.21 Electromagnetismo}
+\rfoot{\small Página \thepage}
+
+\title{
+    \vspace{-2cm}
+    \textbf{\Huge Manual de Usuario} \\[0.5cm]
+    \textbf{\Large Visualizador de Arreglos de Antenas}
+}
+\author{
+    \textbf{Trabajo Especial - 22.21 Electromagnetismo} \\[1ex]
+    Instituto Tecnológico de Buenos Aires (ITBA) \\[0.5cm]
+    \textit{Autores:} \\
+    Alejandro Nahuel Heir \\
+    María de Guadalupe Voss \\[0.5cm]
+    {\small Código Fuente (GitHub):}\\
+    {\small \url{https://github.com/alheir/AntennaArrayVisualizer}}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+\noindent Este documento describe el funcionamiento, base teórica e instalación del software \textit{Antenna Array Visualizer}. La aplicación permite el diseño y análisis interactivo de arreglos lineales de antenas, soportando configuraciones uniformes y no uniformes, con visualización en tiempo real de diagramas polares, cartesianos y métricas de directividad. Desarrollado en Python utilizando las librerías \texttt{CustomTkinter} y \texttt{Matplotlib}.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Introducción}
+El objetivo de este software es proporcionar una herramienta gráfica para el estudio del teorema de multiplicación de diagramas. Este programa permite modificar parámetros como la fase progresiva ($\beta$) y la distribución de corrientes ($I_n$) en tiempo real, facilitando la comprensión de fenómenos como el \textit{beam steering} (direccionamiento del haz) y el \textit{beam shaping} (conformado del haz).
+
+\section{Fundamentos Teóricos y Algoritmos}
+
+\subsection{Principio de Funcionamiento}
+El campo total radiado se calcula aplicando el Teorema de Multiplicación de Diagramas:
+\begin{equation}
+E_{total}(\theta, \phi) = E_{elemento}(\theta, \phi) \times AF(\psi)
+\end{equation}
+
+El software implementa algoritmos numéricos para calcular estos factores basándose en la geometría seleccionada por el usuario (Arreglo sobre el eje Z o sobre el eje X).
+
+\subsection{Factor de Arreglo (AF)}
+Para un arreglo lineal de $N$ elementos, la respuesta del arreglo está dada por:
+\begin{equation}
+AF = \sum_{n=0}^{N-1} I_n e^{j(k d_n \cos \gamma + \beta n)}
+\end{equation}
+Donde $\gamma$ es el ángulo entre el eje del arreglo y el vector de radiación. El software discretiza este cálculo según la orientación:
+
+\subsubsection{Orientación Vertical (Eje Z)}
+El arreglo se ubica sobre el eje Z. El corte de elevación (plano XZ) depende de $\theta$:
+\begin{equation}
+\psi_z = k d \cos(\theta) + \beta
+\end{equation}
+
+\subsubsection{Orientación Horizontal (Eje X)}
+El arreglo se ubica sobre el eje X.
+\begin{itemize}
+    \item \textbf{Corte Azimutal (XY):} Depende de $\phi$ (con $\theta=90^\circ$): $\psi_x = k d \cos(\phi) + \beta$.
+    \item \textbf{Corte de Elevación (XZ):} Depende de $\theta$ (con $\phi=0^\circ$): $\psi_x = k d \sin(\theta) + \beta$.
+\end{itemize}
+
+\subsection{Elementos Radiantes}
+Se modelan tres tipos de elementos (asumiendo alineación vertical de los dipolos):
+\begin{itemize}
+    \item \textbf{Isotrópica:} $F(\theta) = 1$.
+    \item \textbf{Dipolo de $\lambda/2$:} $F(\theta) = \frac{\cos(\frac{\pi}{2}\cos\theta)}{\sin\theta}$.
+    \item \textbf{Monopolo de $\lambda/4$:} Igual al dipolo, pero nulo para $\theta > \pi/2$ (tierra infinita).
+\end{itemize}
+
+\subsection{Cálculo de Directividad y HPBW}
+La directividad máxima ($D_{max}$) no se estima, sino que se calcula mediante integración numérica (Regla del Trapecio) del patrón de potencia normalizado $U(\theta, \phi)$:
+
+\begin{equation}
+D_{max} = \frac{4\pi U_{max}}{P_{rad}} \quad \text{donde} \quad P_{rad} = \iint_{\Omega} U(\theta, \phi) d\Omega
+\end{equation}
+
+El software reporta el valor en dBi ($10\log_{10} D_{linear}$) y el Ancho de Haz de Media Potencia (HPBW) encontrando numéricamente los puntos de -3dB respecto al máximo.
+
+\newpage
+
+\section{Instalación}
+
+\subsection{Requisitos del Sistema}
+\begin{itemize}
+    \item Sistema Operativo: Windows 10/11 (64 bits).
+    \item Espacio en disco: 150 MB aproximadamente.
+\end{itemize}
+
+\subsection{Instrucciones}
+El software se distribuye con un instalador automatizado generado mediante Inno Setup.
+
+\begin{enumerate}
+    \item Ejecute el archivo \texttt{Installer\_AntennaArrayVisualizer.exe}.
+    \item Siga las instrucciones del asistente para seleccionar la carpeta de destino.
+    \item Al finalizar, podrá iniciar la aplicación desde el acceso directo ``Antenna Array Visualizer'' en el escritorio o menú de inicio.
+\end{enumerate}
+
+\section{Uso}
+
+\subsection{Interfaz de Usuario (GUI)}
+La ventana principal se divide en el panel de parámetros (izquierda) y el área de visualización (derecha).
+
+\begin{figure}[H]
+    \centering
+    \fbox{\begin{minipage}{0.9\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{gui-overview.png}
+    \end{minipage}}
+    \caption{Interfaz principal mostrando controles y gráfico polar.}
+    \label{fig:gui}
+\end{figure}
+
+\subsection{Configuración de Parámetros}
+Cada campo de entrada cuenta con \textbf{Tooltips} interactivos: al pasar el mouse sobre la etiqueta del parámetro, aparecerá una ventana emergente con ayuda contextual.
+
+\begin{itemize}
+    \item \textbf{N Antennas:} Cantidad de elementos.
+    \item \textbf{Separation ($d/\lambda$):} Distancia eléctrica entre elementos.
+    \item \textbf{Phase ($\beta$):} Fase progresiva en grados. Modifique este valor para observar el escaneo del haz.
+    \item \textbf{Intensities:} Control de amplitudes.
+    \begin{itemize}
+        \item Valor único (ej. "1"): Arreglo Uniforme.
+        \item Lista (ej. "1, 0.5, 0.5, 1"): Arreglo No Uniforme.
+    \end{itemize}
+    \item \textbf{Type:} Elemento base (Isotrópica, Dipolo, Monopolo).
+    \item \textbf{Array Axis:} Define si el arreglo se coloca sobre el eje Z (Vertical) o X (Horizontal).
+\end{itemize}
+
+\subsection{Visualización y Herramientas}
+
+\subsubsection{Modos de Vista}
+\begin{itemize}
+    \item \textbf{View:} Permite alternar entre el corte Vertical (XZ), Horizontal (XY) o \textbf{Both} (Ambos simultáneamente).
+    \item \textbf{Plot:} Coordenadas Polares o Cartesianas (dB vs Grados).
+    \item \textbf{3D Orientation:} Una casilla de verificación activa un gráfico 3D incrustado en la esquina inferior que muestra la orientación física del arreglo y el plano de corte actual en tiempo real.
+\end{itemize}
+
+\subsubsection{Cursor Interactivo}
+El software incluye un cursor de medicióno:
+\begin{itemize}
+    \item \textbf{Hover:} Al pasar el mouse sobre la curva, se muestra el ángulo, la ganancia en dB y la directividad local.
+    \item \textbf{Click (Fijar):} Al hacer clic en el gráfico, el cursor se ``congela'' en esa posición, permitiendo analizar un punto específico mientras se modifican otros parámetros. Haga clic nuevamente para liberar.
+\end{itemize}
+
+\subsubsection{Métricas}
+En el título del gráfico se calculan y muestran automáticamente:
+\begin{itemize}
+    \item $D_{max}$: Directividad máxima del conjunto en dBi.
+    \item $HPBW$: Ancho de haz de media potencia en grados.
+    \item $D(^\circ)$: Directividad en la dirección indicada por cursor en dBi.    
+\end{itemize}
+
+\section{Bibliografía}
+\begin{itemize}
+    \item Apuntes de Cátedra, Lic. Patricio A. Marcó, Asignatura 22.21 Electromagnetismo, ITBA.
+    \item Balanis, C. A. (2016). \textit{Antenna Theory: Analysis and Design} (4th ed.). John Wiley \& Sons. Caps. 4 y 6.
+\end{itemize}
+
+\end{document}
