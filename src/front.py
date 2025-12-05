@@ -269,6 +269,12 @@ class App(ctk.CTk):
             self.after_cancel(self.update_timer)
             self.update_timer = None
         try:
+            # Disable cursor data during update to prevent race conditions
+            self.theta_plot = None
+            self.af_db_plot = None
+            self.theta_deg_sorted = None
+            self.af_db_sorted = None
+            
             # Inputs
             N = int(self.entry_n.get())
             d = float(self.entry_d.get())
