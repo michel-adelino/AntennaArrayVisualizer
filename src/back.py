@@ -12,27 +12,22 @@ class AntennaCalculator:
             N (int): Number of antennas
             d_lambda (float): Separation d/lambda
             beta_deg (float): Phase difference in degrees
-            element_type (str): "Isotropic" or "Dipole (lambda/2)"
+            element_type (str): "Isotropic", "Dipole (lambda/2)", or "Monopole (lambda/4)"
         """
         # Theta from 0 to 2pi
-        theta = np.linspace(0, 2 * np.pi, 360)
+        theta = np.linspace(0, 2 * np.pi, 1000)
         
         k = 2 * np.pi
         beta = np.deg2rad(beta_deg) # Convert user input to radians
         
         # --- 1. ARRAY FACTOR (AF) ---
         # Use centered indices for symmetry: -(N-1)/2 to (N-1)/2
-        # Example N=4: indices = [-1.5, -0.5, 0.5, 1.5]
         indices = np.arange(N) - (N - 1) / 2
         
         AF = np.zeros_like(theta, dtype=complex)
         
-        # Vectorization of the calculation (faster than 'for' loop)
         # psi = k * d * cos(theta) + beta
-        # Exponent = j * n * psi
-        
-        # NOTE: To match the convention where theta=0 is the Z-axis
-        # and the array is along the Z-axis:
+        # NOTE: theta=0 is the Z-axis (Up)
         psi = k * d_lambda * np.cos(theta) + beta
         
         for n in indices:
@@ -41,7 +36,7 @@ class AntennaCalculator:
         # --- 2. ELEMENT FACTOR (EF) ---
         EF = self._get_element_factor(theta, element_type)
         
-        # --- 3. MULTIPLICATION (Total Field) ---
+        # --- 3. MULTIPLICACIÓN (Total Field) ---
         # Pattern = |AF| * |EF|
         total_field = np.abs(AF) * EF
         
@@ -58,29 +53,38 @@ class AntennaCalculator:
         if el_type == "Isotropic":
             return np.ones_like(theta)
         
-        elif "Dipole" in el_type: # Half-wave dipole
-            # Assuming dipole is aligned with the Z-axis
-            
+        # Both Dipole and Monopole share the base cos(cos)/sin shape
+        elif "Dipole" in el_type or "Monopole" in el_type:
+            # Assuming alignment with Z-axis
             numerator = np.cos((np.pi / 2) * np.cos(theta))
             denominator = np.sin(theta)
             
-            # Handle division by zero (at theta = 0 and theta = pi)
-            # Using 'ignore' so it doesn't print warnings, then fix NaNs
+            # Handle division by zero (at poles)
             with np.errstate(divide='ignore', invalid='ignore'):
                 ef = np.abs(numerator / denominator)
             
-            # Replace NaNs or Infs with 0 (dipole nulls)
+            # Fix numerical artifacts (NaNs/Infs becomes 0)
             ef = np.nan_to_num(ef, nan=0.0, posinf=0.0, neginf=0.0)
+            
+            # --- MONOPOLE SPECIFIC LOGIC ---
+            if "Monopole" in el_type:
+                # Infinite Ground Plane Assumption:
+                # Radiation exists only in the upper hemisphere (0 to pi/2)
+                # In our 0-2pi array, this corresponds to 0-90 deg and 270-360 deg.
+                # We mask out the bottom (90 to 270 deg).
+                mask = (theta <= np.pi/2) | (theta >= 3*np.pi/2)
+                ef = ef * mask
+                
             return ef
             
         return np.ones_like(theta)
     
     def convert_to_db(self, af_linear, dynamic_range=40):
-        # Avoid log(0) by adding a small epsilon
+        # Avoid log(0)
         af_safe = af_linear + 1e-12
         # Convert to dB
         af_db = 20 * np.log10(af_safe)
-        # Apply the floor based on the selected dynamic range
+        # Apply floor
         floor_val = -abs(dynamic_range)
         af_db_clipped = np.clip(af_db, floor_val, 0)
         return af_db_clipped

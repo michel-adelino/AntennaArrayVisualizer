@@ -45,14 +45,17 @@ class App(ctk.CTk):
         self.lbl_beta = ctk.CTkLabel(self.frame_controls, text="Phase Diff (β in degrees):")
         self.lbl_beta.pack(pady=(5, 0))
         self.entry_beta = ctk.CTkEntry(self.frame_controls)
-        self.entry_beta.insert(0, "0") # Default Broadside
+        self.entry_beta.insert(0, "0")
         self.entry_beta.pack(pady=5)
 
         # 4. Element Type
         self.lbl_type = ctk.CTkLabel(self.frame_controls, text="Element Type:")
         self.lbl_type.pack(pady=(15, 0))
+        # Updated values to include Monopole
         self.combo_type = ctk.CTkComboBox(self.frame_controls, 
-                                          values=["Isotropic", "Dipole (lambda/2)"])
+                                          values=["Isotropic", 
+                                                  "Dipole (λ/2)", 
+                                                  "Monopole (λ/4)"])
         self.combo_type.set("Isotropic")
         self.combo_type.pack(pady=5)
 
@@ -120,7 +123,7 @@ class App(ctk.CTk):
             # Plot Data
             self.ax.plot(theta, af_db, color='#1f77b4', linewidth=2)
             
-            # Update plot title
+            # Update title
             title_text = f"Pattern: {el_type}\nN={N}, d={d}λ, β={beta}°"
             self.ax.set_title(title_text, va='bottom', fontsize=10)
             self.ax.grid(True, alpha=0.5)
