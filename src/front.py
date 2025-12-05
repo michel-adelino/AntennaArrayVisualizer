@@ -204,7 +204,7 @@ class App(ctk.CTk):
         
         # Text format
         text = f"Cursor: {angle_deg:.1f}°, {db:.1f} dB (Norm) | Dir: {local_dir:.2f} dBi"
-        self.cursor_text = text if not is_fixed else f"[Fixed] {text}"
+        self.cursor_text = text
         
         # Update point/line
         if is_fixed:
@@ -304,7 +304,6 @@ class App(ctk.CTk):
             self.cursor_point = None
             self.cursor_line = None
             self.cursor_text = ""
-            self.fixed_cursor = False # Reset freeze on re-calc
 
             if plot_type == "Polar":
                 self.ax = self.fig.add_subplot(111, projection='polar')
@@ -345,6 +344,22 @@ class App(ctk.CTk):
             title_text = f"Pattern ({'Horizontal' if 'Horizontal' in view else 'Vertical'}): {el_type}\nN={N}, d={d}λ, β={beta}°, D={d_dbi:.2f} dBi, HPBW={hpbw:.1f}°"
             self.ax.set_title(title_text, va='bottom', fontsize=10)
             self.fig.tight_layout()
+            
+            # Update fixed cursor db and create visuals
+            if self.fixed_cursor and self.fixed_x is not None:
+                if plot_type == "Polar":
+                    db = np.interp(self.fixed_x, self.theta_plot, self.af_db_plot)
+                else:
+                    db = np.interp(self.fixed_x, self.theta_deg_sorted, self.af_db_sorted)
+                self.fixed_db = db
+                self.cursor_point = self.ax.scatter(self.fixed_x, self.fixed_db, color='red', s=50, zorder=10)
+                self.cursor_line = self.ax.axvline(self.fixed_x, color='red', linestyle='--')
+                # Update cursor text
+                angle_deg = np.rad2deg(self.fixed_x) if plot_type == "Polar" else self.fixed_x
+                dir_dbi = 10 * np.log10(self.D_linear) + db if self.D_linear > 0 else 0
+                self.cursor_text = f"Cursor: {angle_deg:.1f}°, {db:.1f} dB, Dir: {dir_dbi:.1f} dBi"
+            
+            self.update_title()
             self.canvas.draw()
             
             self.lbl_status.configure(text="Calculation successful.", text_color="green", font=("Arial", 12, "normal"))
