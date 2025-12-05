@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+# AGREGADO: Importamos NavigationToolbar2Tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import numpy as np
 from src.back import AntennaCalculator
 
@@ -56,7 +57,7 @@ class App(ctk.CTk):
         self.lbl_currents = ctk.CTkLabel(self.frame_controls, text="Currents (CSV, e.g., '1, 0.5, 1'):")
         self.lbl_currents.pack(pady=(5, 0))
         self.entry_currents = ctk.CTkEntry(self.frame_controls)
-        self.entry_currents.insert(0, "1") # Default uniform distribution
+        self.entry_currents.insert(0, "1") 
         self.entry_currents.pack(pady=5)
         self.entry_currents.bind("<FocusOut>", lambda e: self.update_plot())
 
@@ -64,9 +65,7 @@ class App(ctk.CTk):
         self.lbl_type = ctk.CTkLabel(self.frame_controls, text="Element Type:")
         self.lbl_type.pack(pady=(15, 0))
         self.combo_type = ctk.CTkComboBox(self.frame_controls, 
-                                          values=["Isotropic", 
-                                                  "Dipole (λ/2)", 
-                                                  "Monopole (λ/4)"],
+                                          values=["Isotropic", "Dipole (λ/2)", "Monopole (λ/4)"],
                                           command=lambda value: self.update_plot())
         self.combo_type.set("Isotropic")
         self.combo_type.pack(pady=5)
@@ -95,7 +94,6 @@ class App(ctk.CTk):
         self.slider_range = ctk.CTkSlider(self.frame_controls, from_=10, to=80, number_of_steps=70)
         self.slider_range.set(40)
         self.slider_range.pack(pady=5)
-        
         self.lbl_range_val = ctk.CTkLabel(self.frame_controls, text="40 dB")
         self.lbl_range_val.pack(pady=(0, 5))
         self.slider_range.configure(command=self._slider_event_handler)
@@ -106,7 +104,6 @@ class App(ctk.CTk):
         self.slider_tick = ctk.CTkSlider(self.frame_controls, from_=1, to=20, number_of_steps=19)
         self.slider_tick.set(10)
         self.slider_tick.pack(pady=5)
-        
         self.lbl_tick_val = ctk.CTkLabel(self.frame_controls, text="10 dB")
         self.lbl_tick_val.pack(pady=(0, 5))
         self.slider_tick.configure(command=self._tick_slider_event_handler)
@@ -117,7 +114,6 @@ class App(ctk.CTk):
         self.slider_angle = ctk.CTkSlider(self.frame_controls, from_=5, to=90, number_of_steps=17)
         self.slider_angle.set(30)
         self.slider_angle.pack(pady=5)
-        
         self.lbl_angle_val = ctk.CTkLabel(self.frame_controls, text="30°")
         self.lbl_angle_val.pack(pady=(0, 5))
         self.slider_angle.configure(command=self._angle_slider_event_handler)
@@ -136,42 +132,41 @@ class App(ctk.CTk):
         self.frame_plot = ctk.CTkFrame(self)
         self.frame_plot.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
         
+        # --- CONFIGURACIÓN DEL GRÁFICO ---
         self.fig = Figure(figsize=(5, 5), dpi=100)
+        
+        # 1. Canvas (El dibujo en sí)
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.frame_plot)
+        self.canvas.get_tk_widget().pack(fill="both", expand=True)
+        
+        # 2. Toolbar (La "Toolbox" de exportación y zoom)
+        # Se asocia al canvas y al frame padre
+        self.toolbar = NavigationToolbar2Tk(self.canvas, self.frame_plot)
+        self.toolbar.update()
+        # Se empaqueta debajo del gráfico
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
 
         self.update_plot()
 
+    # --- HANDLERS ---
     def _slider_event_handler(self, value):
-        """Handles slider value changes with a debounce timer to update the plot."""
         self.lbl_range_val.configure(text=f"{int(value)} dB")
-        
-        if self.update_timer is not None:
-            self.after_cancel(self.update_timer)
-            
+        if self.update_timer: self.after_cancel(self.update_timer)
         self.update_timer = self.after(400, self.update_plot)
 
     def _tick_slider_event_handler(self, value):
-        """Handles tick slider value changes with a debounce timer to update the plot."""
         self.lbl_tick_val.configure(text=f"{int(value)} dB")
-        
-        if self.update_timer is not None:
-            self.after_cancel(self.update_timer)
-            
+        if self.update_timer: self.after_cancel(self.update_timer)
         self.update_timer = self.after(400, self.update_plot)
 
     def _angle_slider_event_handler(self, value):
-        """Handles angle slider value changes with a debounce timer to update the plot."""
         self.lbl_angle_val.configure(text=f"{int(value)}°")
-        
-        if self.update_timer is not None:
-            self.after_cancel(self.update_timer)
-            
+        if self.update_timer: self.after_cancel(self.update_timer)
         self.update_timer = self.after(400, self.update_plot)
 
     def update_plot(self):
         try:
-            # Get simple numeric inputs
+            # Inputs
             N = int(self.entry_n.get())
             d = float(self.entry_d.get())
             beta = float(self.entry_beta.get())
@@ -182,30 +177,27 @@ class App(ctk.CTk):
             angle_step = int(self.slider_angle.get())
             plot_type = self.seg_plot_type.get()
 
-            # Parse Currents Input (CSV string)
+            # Currents
             raw_currents = self.entry_currents.get()
-            
-            # Convert string "1, 0.5" -> list [1.0, 0.5]
             if not raw_currents.strip(): 
-                current_list = [1.0] # Fallback if empty
+                current_list = [1.0]
             else:
                 current_list = [float(x) for x in raw_currents.split(',')]
             
-            # Logic: If user enters 1 value, broadcast to N. Else, require length N.
             if len(current_list) == 1:
                 currents = np.full(N, current_list[0])
             elif len(current_list) == N:
                 currents = np.array(current_list)
             else:
-                raise ValueError(f"Currents count ({len(current_list)}) must match N ({N}) or be a single value.")
+                raise ValueError(f"Currents count ({len(current_list)}) must match N ({N})")
 
-            # Calculate pattern
+            # Calculate
             theta, total_linear = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view=view)
 
             # Convert to dB
             af_db = self.calculator.convert_to_db(total_linear, dynamic_range=dyn_range)
 
-            # Plot Config
+            # Plotting
             self.fig.clear()
 
             if plot_type == "Polar":
@@ -215,18 +207,17 @@ class App(ctk.CTk):
                 
                 angles_deg = np.arange(0, 360, angle_step)
                 labels = [f'{d}°' if d <= 180 else f'{d - 360}°' for d in angles_deg]
-                if 180 in angles_deg:
-                    labels[list(angles_deg).index(180)] = '±180°'
+                if 180 in angles_deg: labels[list(angles_deg).index(180)] = '±180°'
                 self.ax.set_thetagrids(angles_deg, labels)
                 
                 self.ax.set_ylim(-dyn_range, 0)
-                step = tick_step
-                self.ax.set_yticks(np.arange(-dyn_range, 1, step))
+                self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
                 self.ax.plot(theta, af_db, color='#1f77b4', linewidth=2)
             
             else: # Cartesian
                 self.ax = self.fig.add_subplot(111)
                 theta_deg = np.rad2deg(theta)
+                # Shift logic: [0, 360] -> [-180, 180] for display
                 theta_deg_shifted = np.copy(theta_deg)
                 theta_deg_shifted[theta_deg_shifted >= 180] -= 360
                 
@@ -244,7 +235,7 @@ class App(ctk.CTk):
                 self.ax.set_xticks(np.arange(-180, 181, angle_step))
                 self.ax.tick_params(axis='x', rotation=45)
 
-            # Update title
+            # Title & Layout
             title_text = f"Pattern ({'Horizontal' if 'Horizontal' in view else 'Vertical'}): {el_type}\nN={N}, d={d}λ, β={beta}°"
             self.ax.set_title(title_text, va='bottom', fontsize=10)
             self.ax.grid(True, alpha=0.5)
