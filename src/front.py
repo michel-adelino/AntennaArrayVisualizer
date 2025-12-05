@@ -236,6 +236,23 @@ class App(ctk.CTk):
         self.toolbar = NavigationToolbar2Tk(self.canvas, self.frame_plot)
         self.toolbar.update()
 
+        self.cursor_line = None
+        self.fixed_cursor = False
+        self.cursor_text = ""
+        self.D = 0
+        self.fixed_x = None
+        self.fixed_db = None
+        self.cursor_point = None
+        self.theta_plot = None
+        self.af_db_plot = None
+        self.theta_deg_sorted = None
+        self.af_db_sorted = None
+        self.last_x = None
+        self.last_db = None
+
+        self.canvas.mpl_connect('motion_notify_event', self.on_mouse_move)
+        self.canvas.mpl_connect('button_press_event', self.on_click)
+
         self.update_plot()
 
     # --- HANDLERS ---
@@ -253,6 +270,98 @@ class App(ctk.CTk):
         self.lbl_angle_val.configure(text=f"{int(value)}°")
         if self.update_timer: self.after_cancel(self.update_timer)
         self.update_timer = self.after(400, self.update_plot)
+
+    def on_mouse_move(self, event):
+        if event.inaxes == self.ax and not self.fixed_cursor and self.theta_plot is not None:
+            if self.seg_plot_type.get() == "Polar":
+                if event.xdata is not None:
+                    angle_rad = (event.xdata % (2 * np.pi) + 2 * np.pi) % (2 * np.pi)
+                    db = np.interp(angle_rad, self.theta_plot, self.af_db_plot)
+                    angle_deg = np.rad2deg(angle_rad)
+                    x_val = angle_rad
+                else:
+                    return
+            else:
+                if event.xdata is not None:
+                    angle_deg = event.xdata
+                    db = np.interp(angle_deg, self.theta_deg_sorted, self.af_db_sorted)
+                    x_val = angle_deg
+                else:
+                    return
+            dir_dbi = 10 * np.log10(self.D) + db if self.D > 0 else 0
+            self.cursor_text = f"Cursor: ({angle_deg:.1f}°, {db:.2}dBi), D(°)={dir_dbi:.2f}dBi"
+            self.last_x = x_val
+            self.last_db = db
+            if self.cursor_point:
+                self.cursor_point.set_offsets([x_val, db])
+            else:
+                self.cursor_point = self.ax.scatter(x_val, db, color='red', s=50, zorder=10)
+            if self.cursor_line:
+                self.cursor_line.set_xdata([x_val, x_val])
+            else:
+                self.cursor_line = self.ax.axvline(x_val, color='red', linestyle='--')
+            self.canvas.draw()
+            self.update_title()
+
+    def on_click(self, event):
+        if event.inaxes == self.ax:
+            if self.seg_plot_type.get() == "Polar":
+                if event.xdata is not None:
+                    angle_rad = (event.xdata % (2 * np.pi) + 2 * np.pi) % (2 * np.pi)
+                    db = np.interp(angle_rad, self.theta_plot, self.af_db_plot)
+                    angle_deg = np.rad2deg(angle_rad)
+                else:
+                    return
+            else:
+                if event.xdata is not None:
+                    angle_deg = event.xdata
+                    db = np.interp(angle_deg, self.theta_deg_sorted, self.af_db_sorted)
+                else:
+                    return
+            if self.fixed_cursor:
+                self.fixed_cursor = False
+                self.cursor_text = ""
+                self.fixed_x = None
+                self.fixed_db = None
+                if self.cursor_line:
+                    self.cursor_line.set_visible(False)
+                if self.cursor_point:
+                    self.cursor_point.set_visible(False)
+                # Restore last mobile cursor if exists
+                if self.last_x is not None and self.last_db is not None:
+                    self.cursor_point = self.ax.scatter(self.last_x, self.last_db, color='red', s=50, zorder=10)
+                    self.cursor_line = self.ax.axvline(self.last_x, color='red', linestyle='--')
+                    self.cursor_text = f"Cursor: {np.rad2deg(self.last_x):.1f}°, {self.last_db:.1f} dB, Dir: {10 * np.log10(self.D) + self.last_db:.1f} dBi" if self.seg_plot_type.get() == "Polar" else f"Cursor: {self.last_x:.1f}°, {self.last_db:.1f} dB, Dir: {10 * np.log10(self.D) + self.last_db:.1f} dBi"
+            else:
+                self.fixed_cursor = True
+                if self.seg_plot_type.get() == "Polar":
+                    x_val = angle_rad
+                else:
+                    x_val = angle_deg
+                dir_dbi = 10 * np.log10(self.D) + db if self.D > 0 else 0
+                self.cursor_text = f"Cursor: {angle_deg:.1f}°, {db:.1f} dB, Dir: {dir_dbi:.1f} dBi"
+                self.fixed_x = x_val
+                self.fixed_db = db
+                self.last_x = None  # Clear last mobile
+                self.last_db = None
+                if self.cursor_point:
+                    self.cursor_point.set_offsets([x_val, db])
+                else:
+                    self.cursor_point = self.ax.scatter(x_val, db, color='red', s=50, zorder=10)
+                if self.cursor_line:
+                    self.cursor_line.set_xdata([x_val, x_val])
+                else:
+                    self.cursor_line = self.ax.axvline(x_val, color='red', linestyle='--')
+            self.canvas.draw()
+            self.update_title()
+
+    def update_title(self):
+        if hasattr(self, 'ax') and self.ax:
+            current_title = self.ax.get_title()
+            lines = current_title.split('\n')
+            base_title = '\n'.join(lines[:2])  # First two lines
+            self.ax.set_title(f"{base_title}\n{self.cursor_text}", va='bottom', fontsize=10)
+            self.canvas.draw()
 
     def update_plot(self):
         if hasattr(self, 'update_timer') and self.update_timer:
@@ -290,6 +399,13 @@ class App(ctk.CTk):
             # Convert to dB
             af_db = self.calculator.convert_to_db(total_linear, dynamic_range=dyn_range)
 
+            D = self.calculator.calculate_directivity(total_linear, theta)
+            hpbw = self.calculator.calculate_hpbw(total_linear, theta)
+
+            self.D = D
+            self.theta_plot = theta
+            self.af_db_plot = af_db
+
             # Plotting
             self.fig.clear()
 
@@ -317,6 +433,9 @@ class App(ctk.CTk):
                 theta_deg_sorted = theta_deg_shifted[sort_indices]
                 af_db_sorted = af_db[sort_indices]
                 
+                self.theta_deg_sorted = theta_deg_sorted
+                self.af_db_sorted = af_db_sorted
+                
                 self.ax.plot(theta_deg_sorted, af_db_sorted, color='#1f77b4', linewidth=2)
                 self.ax.set_xlabel("Angle (°)")
                 self.ax.set_ylabel("Normalized Power (dB)")
@@ -328,13 +447,28 @@ class App(ctk.CTk):
                 self.ax.tick_params(axis='x', rotation=45)
 
             # Title & Layout
-            title_text = f"Pattern ({'Horizontal' if 'Horizontal' in view else 'Vertical'}): {el_type}\nN={N}, d={d}λ, β={beta}°"
+            title_text = f"Pattern ({'Horizontal' if 'Horizontal' in view else 'Vertical'}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={D:.2f}dBi, HPBW={hpbw:.1f}°\n{self.cursor_text}"
             self.ax.set_title(title_text, va='bottom', fontsize=10)
             self.ax.grid(True, alpha=0.5)
             self.fig.tight_layout()
             
+            if self.fixed_cursor and self.fixed_x is not None and self.fixed_db is not None:
+                self.cursor_point = self.ax.scatter(self.fixed_x, self.fixed_db, color='red', s=50, zorder=10)
+                self.cursor_line = self.ax.axvline(self.fixed_x, color='red', linestyle='--')
+            elif not self.fixed_cursor and self.last_x is not None and self.last_db is not None:
+                self.cursor_point = self.ax.scatter(self.last_x, self.last_db, color='red', s=50, zorder=10)
+                self.cursor_line = self.ax.axvline(self.last_x, color='red', linestyle='--')
+            
             self.canvas.draw()
             self.lbl_status.configure(text="Calculation successful.", text_color="green", font=("Arial", 12, "normal"))
+
+            self.cursor_text = ""
+            if self.cursor_line and not self.fixed_cursor and self.last_x is None:
+                self.cursor_line.set_visible(False)
+                self.cursor_line = None
+            if self.cursor_point and not self.fixed_cursor and self.last_x is None:
+                self.cursor_point.set_visible(False)
+                self.cursor_point = None
 
         except ValueError as ve:
             self.lbl_status.configure(text=f"Error: {str(ve)}", text_color="red", font=("Arial", 13, "bold"))

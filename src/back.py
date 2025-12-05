@@ -98,3 +98,42 @@ class AntennaCalculator:
         floor_val = -abs(dynamic_range)
         af_db_clipped = np.clip(af_db, floor_val, 0)
         return af_db_clipped
+
+    def calculate_directivity(self, pattern, theta):
+        integral = np.trapezoid(pattern**2, theta)
+        D = 2 * np.pi / integral
+        return D
+
+    def calculate_hpbw(self, pattern, theta):
+        max_val = np.max(pattern)
+        half_power = max_val / np.sqrt(2)
+        peak_idx = np.argmax(pattern)
+        peak_theta = theta[peak_idx]
+        
+        left_idx = peak_idx
+        while left_idx > 0 and pattern[left_idx] > half_power:
+            left_idx -= 1
+        if left_idx < peak_idx:
+            if pattern[left_idx] < half_power < pattern[left_idx+1]:
+                frac = (half_power - pattern[left_idx]) / (pattern[left_idx+1] - pattern[left_idx])
+                left_theta = theta[left_idx] + frac * (theta[left_idx+1] - theta[left_idx])
+            else:
+                left_theta = theta[left_idx]
+        else:
+            left_theta = theta[0]
+        
+        right_idx = peak_idx
+        while right_idx < len(pattern)-1 and pattern[right_idx] > half_power:
+            right_idx += 1
+        if right_idx > peak_idx:
+            if pattern[right_idx-1] > half_power > pattern[right_idx]:
+                frac = (pattern[right_idx-1] - half_power) / (pattern[right_idx-1] - pattern[right_idx])
+                right_theta = theta[right_idx-1] + frac * (theta[right_idx] - theta[right_idx-1])
+            else:
+                right_theta = theta[right_idx]
+        else:
+            right_theta = theta[-1]
+        
+        hpbw_rad = right_theta - left_theta
+        hpbw_deg = np.rad2deg(hpbw_rad)
+        return hpbw_deg
