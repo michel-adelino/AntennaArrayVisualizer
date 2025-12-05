@@ -19,9 +19,9 @@ class CTkTooltip:
             return
         
         # Coordinates
-        x, y, _, _ = self.widget.bbox("insert")
-        x += self.widget.winfo_rootx() + 25
-        y += self.widget.winfo_rooty() + 25
+        x = self.widget.winfo_rootx() + 25
+        y = self.widget.winfo_rooty() + 25
+        
         
         # Create floating window
         self.tooltip_window = tk.Toplevel(self.widget)
