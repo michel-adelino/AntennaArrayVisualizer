@@ -450,7 +450,7 @@ class App(ctk.CTk):
                 self.ax.set_xticks(np.arange(-180, 181, angle_step))
                 self.ax.grid(True, alpha=0.5)
 
-            title_text = f"Pattern ({'Horizontal' if 'Horizontal' in view else 'Vertical'}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, HPBW={hpbw:.1f}°"
+            title_text = f"Pattern ({view}, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, HPBW={hpbw:.1f}°"
             self.ax.set_title(title_text, va='bottom', fontsize=10)
             self.fig.tight_layout()
             
