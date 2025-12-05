@@ -15,6 +15,7 @@ class App(ctk.CTk):
         ctk.set_default_color_theme("blue")
 
         self.calculator = AntennaCalculator()
+        self.update_timer = None
 
         # --- MAIN LAYOUT ---
         self.grid_columnconfigure(1, weight=1)
@@ -33,6 +34,7 @@ class App(ctk.CTk):
         self.entry_n = ctk.CTkEntry(self.frame_controls)
         self.entry_n.insert(0, "4")
         self.entry_n.pack(pady=5)
+        self.entry_n.bind("<FocusOut>", lambda e: self.update_plot())
 
         # 2. Separation (d/lambda)
         self.lbl_d = ctk.CTkLabel(self.frame_controls, text="Separation (d/λ):")
@@ -40,6 +42,7 @@ class App(ctk.CTk):
         self.entry_d = ctk.CTkEntry(self.frame_controls)
         self.entry_d.insert(0, "0.5")
         self.entry_d.pack(pady=5)
+        self.entry_d.bind("<FocusOut>", lambda e: self.update_plot())
 
         # 3. Phase Difference (Beta)
         self.lbl_beta = ctk.CTkLabel(self.frame_controls, text="Phase Diff (β in degrees):")
@@ -47,6 +50,7 @@ class App(ctk.CTk):
         self.entry_beta = ctk.CTkEntry(self.frame_controls)
         self.entry_beta.insert(0, "0")
         self.entry_beta.pack(pady=5)
+        self.entry_beta.bind("<FocusOut>", lambda e: self.update_plot())
         
         # 4. Currents
         self.lbl_currents = ctk.CTkLabel(self.frame_controls, text="Currents (CSV, e.g., '1, 0.5, 1'):")
@@ -54,6 +58,7 @@ class App(ctk.CTk):
         self.entry_currents = ctk.CTkEntry(self.frame_controls)
         self.entry_currents.insert(0, "1") # Default uniform distribution
         self.entry_currents.pack(pady=5)
+        self.entry_currents.bind("<FocusOut>", lambda e: self.update_plot())
 
         # 5. Element Type
         self.lbl_type = ctk.CTkLabel(self.frame_controls, text="Element Type:")
@@ -61,7 +66,8 @@ class App(ctk.CTk):
         self.combo_type = ctk.CTkComboBox(self.frame_controls, 
                                           values=["Isotropic", 
                                                   "Dipole (λ/2)", 
-                                                  "Monopole (λ/4)"])
+                                                  "Monopole (λ/4)"],
+                                          command=lambda value: self.update_plot())
         self.combo_type.set("Isotropic")
         self.combo_type.pack(pady=5)
 
@@ -69,7 +75,8 @@ class App(ctk.CTk):
         self.lbl_view = ctk.CTkLabel(self.frame_controls, text="View (Plane):")
         self.lbl_view.pack(pady=(10, 0))
         self.combo_view = ctk.CTkComboBox(self.frame_controls,
-                                          values=["Vertical (XZ)", "Horizontal (XY)"])
+                                          values=["Vertical (XZ)", "Horizontal (XY)"],
+                                          command=lambda value: self.update_plot())
         self.combo_view.set("Vertical (XZ)")
         self.combo_view.pack(pady=5)
 
@@ -91,7 +98,7 @@ class App(ctk.CTk):
         
         self.lbl_range_val = ctk.CTkLabel(self.frame_controls, text="40 dB")
         self.lbl_range_val.pack(pady=(0, 5))
-        self.slider_range.configure(command=lambda val: self.lbl_range_val.configure(text=f"{int(val)} dB"))
+        self.slider_range.configure(command=self._slider_event_handler)
 
         # Calculate Button
         self.btn_calc = ctk.CTkButton(self.frame_controls, text="CALCULATE PATTERN", 
@@ -112,6 +119,15 @@ class App(ctk.CTk):
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
 
         self.update_plot()
+
+    def _slider_event_handler(self, value):
+        """Handles slider value changes with a debounce timer to update the plot."""
+        self.lbl_range_val.configure(text=f"{int(value)} dB")
+        
+        if self.update_timer is not None:
+            self.after_cancel(self.update_timer)
+            
+        self.update_timer = self.after(400, self.update_plot)
 
     def update_plot(self):
         try:
