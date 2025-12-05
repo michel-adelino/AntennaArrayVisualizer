@@ -238,6 +238,7 @@ class App(ctk.CTk):
                 self.ax.set_xlabel("Angle (°)")
                 self.ax.set_ylabel("Normalized Power (dB)")
                 self.ax.set_xlim(-180, 180)
+                self.ax.margins(x=0)
                 self.ax.set_ylim(-dyn_range, 0)
                 self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
                 self.ax.set_xticks(np.arange(-180, 181, angle_step))
@@ -247,6 +248,7 @@ class App(ctk.CTk):
             title_text = f"Pattern ({'Horizontal' if 'Horizontal' in view else 'Vertical'}): {el_type}\nN={N}, d={d}λ, β={beta}°"
             self.ax.set_title(title_text, va='bottom', fontsize=10)
             self.ax.grid(True, alpha=0.5)
+            self.fig.tight_layout()
             
             self.canvas.draw()
             self.lbl_status.configure(text="Calculation successful.", text_color="green")
