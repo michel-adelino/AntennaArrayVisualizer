@@ -117,8 +117,8 @@ class App(ctk.CTk):
 
         self.lbl_view = ctk.CTkLabel(self.frame_controls, text="View:", cursor="hand2")
         self.lbl_view.grid(row=r, column=0, sticky="e", padx=5, pady=5)
-        CTkTooltip(self.lbl_view, "Cut Plane:\nVertical (Elevation/Theta)\nHorizontal (Azimuth/Phi)")
-        self.combo_view = ctk.CTkComboBox(self.frame_controls, values=["Vertical (XZ)", "Horizontal (XY)"], command=lambda v: self.update_plot())
+        CTkTooltip(self.lbl_view, "Cut Plane:\nVertical (Elevation/Theta)\nHorizontal (Azimuth/Phi)\nBoth: Show both views")
+        self.combo_view = ctk.CTkComboBox(self.frame_controls, values=["Vertical (XZ)", "Horizontal (XY)", "Both"], command=lambda v: self.update_plot())
         self.combo_view.set("Vertical (XZ)")
         self.combo_view.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
         r += 1
@@ -208,6 +208,7 @@ class App(ctk.CTk):
     # --- CURSOR LOGIC ---
     def get_cursor_data(self, event):
         """Returns (angle_deg, db_val, plot_x) from event."""
+        if self.combo_view.get() == "Both": return None
         if self.seg_plot_type.get() == "Polar":
             if event.xdata is None: return None
             if self.theta_plot is None or self.af_db_plot is None:
@@ -407,27 +408,72 @@ class App(ctk.CTk):
             self.cursor_text = ""
 
             if plot_type == "Polar":
-                self.ax = self.fig.add_subplot(111, projection='polar')
-                self.ax.set_theta_zero_location('N')
-                self.ax.set_theta_direction(-1)
-                
-                angles_deg = np.arange(0, 360, angle_step)
-                labels = [f'{deg}°' if deg <= 180 else f'{deg - 360}°' for deg in angles_deg]
-                if 180 in angles_deg: labels[list(angles_deg).index(180)] = '±180°'
-                self.ax.set_thetagrids(angles_deg, labels)
-                
-                self.ax.set_ylim(-dyn_range, 0)
-                self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
-                self.ax.plot(theta, af_db, color='#1f77b4', linewidth=2)
-                self.ax.grid(True, alpha=0.5)
-                
-                # Add axis direction labels
-                if "Horizontal" in view:
-                    directions = {'+X': 0, '+Y': np.pi/2, '-X': np.pi, '-Y': 3*np.pi/2}
+                if view == "Both":
+                    # Plot both views side by side
+                    self.ax1 = self.fig.add_subplot(121, projection='polar')
+                    self.ax2 = self.fig.add_subplot(122, projection='polar')
+                    
+                    # Vertical view
+                    theta_v, total_linear_v = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Vertical (XZ)", array_axis=array_axis)
+                    af_db_v = self.calculator.convert_to_db(total_linear_v, dynamic_range=dyn_range)
+                    
+                    self.ax1.set_theta_zero_location('N')
+                    self.ax1.set_theta_direction(-1)
+                    angles_deg = np.arange(0, 360, angle_step)
+                    labels = [f'{deg}°' if deg <= 180 else f'{deg - 360}°' for deg in angles_deg]
+                    if 180 in angles_deg: labels[list(angles_deg).index(180)] = '±180°'
+                    self.ax1.set_thetagrids(angles_deg, labels)
+                    self.ax1.set_ylim(-dyn_range, 0)
+                    self.ax1.set_yticks(np.arange(-dyn_range, 1, tick_step))
+                    self.ax1.plot(theta_v, af_db_v, color='#1f77b4', linewidth=2)
+                    self.ax1.grid(True, alpha=0.5)
+                    
+                    directions_v = {'+X': 0, '+Z': np.pi/2, '-X': np.pi, '-Z': 3*np.pi/2}
+                    for label, theta_rad in directions_v.items():
+                        self.ax1.text(theta_rad, -2, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
+                    self.ax1.set_title("Vertical (XZ)", fontsize=10)
+                    
+                    # Horizontal view
+                    theta_h, total_linear_h = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Horizontal (XY)", array_axis=array_axis)
+                    af_db_h = self.calculator.convert_to_db(total_linear_h, dynamic_range=dyn_range)
+                    
+                    self.ax2.set_theta_zero_location('N')
+                    self.ax2.set_theta_direction(-1)
+                    self.ax2.set_thetagrids(angles_deg, labels)
+                    self.ax2.set_ylim(-dyn_range, 0)
+                    self.ax2.set_yticks(np.arange(-dyn_range, 1, tick_step))
+                    self.ax2.plot(theta_h, af_db_h, color='#1f77b4', linewidth=2)
+                    self.ax2.grid(True, alpha=0.5)
+                    
+                    directions_h = {'+X': 0, '+Y': np.pi/2, '-X': np.pi, '-Y': 3*np.pi/2}
+                    for label, theta_rad in directions_h.items():
+                        self.ax2.text(theta_rad, -2, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
+                    self.ax2.set_title("Horizontal (XY)", fontsize=10)
+                    
+                    self.ax = self.ax1  # For cursor, use first one, but disable cursor for Both
+                    
                 else:
-                    directions = {'+X': 0, '+Z': np.pi/2, '-X': np.pi, '-Z': 3*np.pi/2}
-                for label, theta_rad in directions.items():
-                    self.ax.text(theta_rad, -2, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
+                    self.ax = self.fig.add_subplot(111, projection='polar')
+                    self.ax.set_theta_zero_location('N')
+                    self.ax.set_theta_direction(-1)
+                    
+                    angles_deg = np.arange(0, 360, angle_step)
+                    labels = [f'{deg}°' if deg <= 180 else f'{deg - 360}°' for deg in angles_deg]
+                    if 180 in angles_deg: labels[list(angles_deg).index(180)] = '±180°'
+                    self.ax.set_thetagrids(angles_deg, labels)
+                    
+                    self.ax.set_ylim(-dyn_range, 0)
+                    self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
+                    self.ax.plot(theta, af_db, color='#1f77b4', linewidth=2)
+                    self.ax.grid(True, alpha=0.5)
+                    
+                    # Add axis direction labels
+                    if "Horizontal" in view:
+                        directions = {'+X': 0, '+Y': np.pi/2, '-X': np.pi, '-Y': 3*np.pi/2}
+                    else:
+                        directions = {'+X': 0, '+Z': np.pi/2, '-X': np.pi, '-Z': 3*np.pi/2}
+                    for label, theta_rad in directions.items():
+                        self.ax.text(theta_rad, -2, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
             
             else: # Cartesian
                 self.ax = self.fig.add_subplot(111)
@@ -450,12 +496,16 @@ class App(ctk.CTk):
                 self.ax.set_xticks(np.arange(-180, 181, angle_step))
                 self.ax.grid(True, alpha=0.5)
 
-            title_text = f"Pattern ({view}, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, HPBW={hpbw:.1f}°"
-            self.ax.set_title(title_text, va='bottom', fontsize=10)
+            if view == "Both":
+                title_text = f"Pattern (Both Views, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, HPBW={hpbw:.1f}°"
+                self.fig.suptitle(title_text, fontsize=10)
+            else:
+                title_text = f"Pattern ({view}, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, HPBW={hpbw:.1f}°"
+                self.ax.set_title(title_text, va='bottom', fontsize=10)
             self.fig.tight_layout()
             
             # --- DRAW 3D ORIENTATION INSET ---
-            if self.chk_3d.get():
+            if self.chk_3d.get() and view != "Both":
                 is_horiz = "Horizontal" in view
                 axis_letter = 'X' if 'X' in array_axis else 'Z'
                 self.draw_3d_inset(is_horiz, axis_letter)
