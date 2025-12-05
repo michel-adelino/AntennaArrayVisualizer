@@ -5,7 +5,7 @@ import numpy as np
 import tkinter as tk
 from src.back import AntennaCalculator
 
-# --- CLASE TOOLTIP PERSONALIZADA ---
+# --- CUSTOM TOOLTIP CLASS ---
 class CTkTooltip:
     def __init__(self, widget, text):
         self.widget = widget
@@ -18,19 +18,19 @@ class CTkTooltip:
         if self.tooltip_window or not self.text:
             return
         
-        # Coordenadas
+        # Coordinates
         x, y, _, _ = self.widget.bbox("insert")
         x += self.widget.winfo_rootx() + 25
         y += self.widget.winfo_rooty() + 25
         
-        # Crear ventana flotante
+        # Create floating window
         self.tooltip_window = tk.Toplevel(self.widget)
-        self.tooltip_window.wm_overrideredirect(True) # Sin bordes
+        self.tooltip_window.wm_overrideredirect(True) # No borders
         self.tooltip_window.wm_geometry(f"+{x}+{y}")
         
-        # Label interno
+        # Internal label
         label = tk.Label(self.tooltip_window, text=self.text, justify='left',
-                         background="#2b2b2b", fg="#ffffff", # Colores Dark Theme
+                         background="#2b2b2b", fg="#ffffff", # Dark Theme Colors
                          relief='solid', borderwidth=1,
                          font=("Arial", 10, "normal"),
                          padx=5, pady=2)
@@ -41,7 +41,7 @@ class CTkTooltip:
             self.tooltip_window.destroy()
             self.tooltip_window = None
 
-# --- APLICACIÓN PRINCIPAL ---
+# --- MAIN APPLICATION ---
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -80,7 +80,6 @@ class App(ctk.CTk):
         r += 1
 
         # 1. N Antennas
-        # FIX: "hand2" es compatible con Windows, "help" crashea
         self.lbl_n = ctk.CTkLabel(self.frame_controls, text="N Antennas:", cursor="hand2") 
         self.lbl_n.grid(row=r, column=0, sticky="e", padx=5, pady=5)
         CTkTooltip(self.lbl_n, "Total number of radiating elements\nin the array.")
@@ -226,7 +225,7 @@ class App(ctk.CTk):
         self.frame_plot = ctk.CTkFrame(self)
         self.frame_plot.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
         
-        # --- CONFIGURACIÓN DEL GRÁFICO ---
+        # --- GRAPH CONFIGURATION ---
         self.fig = Figure(figsize=(5, 5), dpi=100)
         
         # 1. Canvas
