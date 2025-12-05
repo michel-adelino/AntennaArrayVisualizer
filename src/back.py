@@ -94,12 +94,12 @@ class AntennaCalculator:
         
         # Search left from peak
         idx_left = idx_max
-        while idx_left > 0 and power_pattern[idx_left] > half_power:
+        while idx_left > 0 and power_pattern[idx_left] >= half_power:
             idx_left -= 1
             
         # Search right from peak
         idx_right = idx_max
-        while idx_right < len(theta) - 1 and power_pattern[idx_right] > half_power:
+        while idx_right < len(theta) - 1 and power_pattern[idx_right] >= half_power:
             idx_right += 1
             
         hpbw_rad = theta[idx_right] - theta[idx_left]
