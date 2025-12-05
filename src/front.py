@@ -235,7 +235,6 @@ class App(ctk.CTk):
         # 2. Toolbar
         self.toolbar = NavigationToolbar2Tk(self.canvas, self.frame_plot)
         self.toolbar.update()
-        self.canvas.get_tk_widget().pack(fill="both", expand=True)
 
         self.update_plot()
 
