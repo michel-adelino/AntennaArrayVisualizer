@@ -100,6 +100,17 @@ class App(ctk.CTk):
         self.lbl_range_val.pack(pady=(0, 5))
         self.slider_range.configure(command=self._slider_event_handler)
 
+        # Tick Step
+        self.lbl_tick = ctk.CTkLabel(self.frame_controls, text="Tick Step (dB):")
+        self.lbl_tick.pack(pady=(10, 0))
+        self.slider_tick = ctk.CTkSlider(self.frame_controls, from_=1, to=20, number_of_steps=19)
+        self.slider_tick.set(10)
+        self.slider_tick.pack(pady=5)
+        
+        self.lbl_tick_val = ctk.CTkLabel(self.frame_controls, text="10 dB")
+        self.lbl_tick_val.pack(pady=(0, 5))
+        self.slider_tick.configure(command=self._tick_slider_event_handler)
+
         # Calculate Button
         self.btn_calc = ctk.CTkButton(self.frame_controls, text="CALCULATE PATTERN", 
                                       command=self.update_plot,
@@ -129,6 +140,15 @@ class App(ctk.CTk):
             
         self.update_timer = self.after(400, self.update_plot)
 
+    def _tick_slider_event_handler(self, value):
+        """Handles tick slider value changes with a debounce timer to update the plot."""
+        self.lbl_tick_val.configure(text=f"{int(value)} dB")
+        
+        if self.update_timer is not None:
+            self.after_cancel(self.update_timer)
+            
+        self.update_timer = self.after(400, self.update_plot)
+
     def update_plot(self):
         try:
             # Get simple numeric inputs
@@ -138,6 +158,7 @@ class App(ctk.CTk):
             el_type = self.combo_type.get()
             view = self.combo_view.get()
             dyn_range = int(self.slider_range.get())
+            tick_step = int(self.slider_tick.get())
             plot_type = self.seg_plot_type.get()
 
             # Parse Currents Input (CSV string)
@@ -178,7 +199,7 @@ class App(ctk.CTk):
                 self.ax.set_thetagrids(angles_deg, labels)
                 
                 self.ax.set_ylim(-dyn_range, 0)
-                step = 10 if dyn_range > 30 else 5
+                step = tick_step
                 self.ax.set_yticks(np.arange(-dyn_range, 1, step))
                 self.ax.plot(theta, af_db, color='#1f77b4', linewidth=2)
             
@@ -197,6 +218,7 @@ class App(ctk.CTk):
                 self.ax.set_ylabel("Normalized Power (dB)")
                 self.ax.set_xlim(-180, 180)
                 self.ax.set_ylim(-dyn_range, 0)
+                self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
 
             # Update title
             title_text = f"Pattern ({'Horizontal' if 'Horizontal' in view else 'Vertical'}): {el_type}\nN={N}, d={d}λ, β={beta}°"
