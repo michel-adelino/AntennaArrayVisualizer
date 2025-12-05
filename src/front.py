@@ -322,12 +322,28 @@ class App(ctk.CTk):
             x_c = np.cos(t)
             y_c = np.sin(t)
             z_c = np.zeros_like(t)
+            # Filled disk
+            r = np.linspace(0, 1, 2)
+            R, T = np.meshgrid(r, t)
+            X_fill = R * np.cos(T)
+            Y_fill = R * np.sin(T)
+            Z_fill = np.zeros_like(X_fill)
+            ax_geo.plot_surface(X_fill, Y_fill, Z_fill, color='blue', alpha=0.2)
+            # Outline
             ax_geo.plot(x_c, y_c, z_c, color='blue', linestyle='--', linewidth=1, alpha=0.8)
         else:
             # Vertical (XZ) cut - Blue circle on XZ plane
             x_c = np.sin(t)
             y_c = np.zeros_like(t)
             z_c = np.cos(t)
+            # Filled disk
+            r = np.linspace(0, 1, 2)
+            R, T = np.meshgrid(r, t)
+            X_fill = R * np.sin(T)
+            Y_fill = np.zeros_like(X_fill)
+            Z_fill = R * np.cos(T)
+            ax_geo.plot_surface(X_fill, Y_fill, Z_fill, color='blue', alpha=0.2)
+            # Outline
             ax_geo.plot(x_c, y_c, z_c, color='blue', linestyle='--', linewidth=1, alpha=0.8)
 
         # Set limits to ensure aspect ratio
