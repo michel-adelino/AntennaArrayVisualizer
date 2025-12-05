@@ -80,19 +80,19 @@ class App(ctk.CTk):
         r += 1
 
         # Inputs
-        self._add_input(r, "N Antennas:", "entry_n", "4", "Total radiating elements.")
+        self._add_input(r, "N Antennas:", "entry_n", "4", "Total number of radiating elements\nin the array.")
         r += 1
-        self._add_input(r, "Sep (d/λ):", "entry_d", "0.5", "Element spacing in wavelengths.")
+        self._add_input(r, "Separation (d/λ):", "entry_d", "0.5", "Distance between elements relative\nto wavelength (e.g., 0.5 = λ/2).")
         r += 1
-        self._add_input(r, "Phase (β°):", "entry_beta", "0", "Progressive phase shift.")
+        self._add_input(r, "Phase (β°):", "entry_beta", "0", "Progressive phase shift between\nconsecutive elements (degrees).\nUsed for beam steering.")
         r += 1
-        self._add_input(r, "Intensities:", "entry_currents", "1", "Amplitudes (CSV). E.g: 1, 0.5, 1")
+        self._add_input(r, "Intensities:", "entry_currents", "1", "Current intensity for each element.\nExample for N=4: '1, 0.5, 0.5, 0.33'\nSingle value applies to all.")
         r += 1
 
         # Combos
         self.lbl_type = ctk.CTkLabel(self.frame_controls, text="Type:", cursor="hand2")
         self.lbl_type.grid(row=r, column=0, sticky="e", padx=5, pady=5)
-        CTkTooltip(self.lbl_type, "Element Pattern")
+        CTkTooltip(self.lbl_type, "Radiation pattern of the individual element.\n(Multiplied by Array Factor).")
         self.combo_type = ctk.CTkComboBox(self.frame_controls, values=["Isotropic", "Dipole (λ/2)", "Monopole (λ/4)"], command=lambda v: self.update_plot())
         self.combo_type.set("Isotropic")
         self.combo_type.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
@@ -100,7 +100,7 @@ class App(ctk.CTk):
 
         self.lbl_view = ctk.CTkLabel(self.frame_controls, text="View:", cursor="hand2")
         self.lbl_view.grid(row=r, column=0, sticky="e", padx=5, pady=5)
-        CTkTooltip(self.lbl_view, "Cut Plane selection")
+        CTkTooltip(self.lbl_view, "Cut Plane:\nVertical (Elevation/Theta)\nHorizontal (Azimuth/Phi)")
         self.combo_view = ctk.CTkComboBox(self.frame_controls, values=["Vertical (XZ)", "Horizontal (XY)"], command=lambda v: self.update_plot())
         self.combo_view.set("Vertical (XZ)")
         self.combo_view.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
@@ -108,7 +108,7 @@ class App(ctk.CTk):
 
         self.lbl_plot = ctk.CTkLabel(self.frame_controls, text="Plot:", cursor="hand2")
         self.lbl_plot.grid(row=r, column=0, sticky="e", padx=5, pady=5)
-        CTkTooltip(self.lbl_plot, "Coordinate System")
+        CTkTooltip(self.lbl_plot, "Coordinate system:\nPolar (Directional)\nCartesian (Rectangular analysis)")
         self.seg_plot_type = ctk.CTkSegmentedButton(self.frame_controls, values=["Polar", "Cartesian"], command=lambda v: self.update_plot())
         self.seg_plot_type.set("Polar")
         self.seg_plot_type.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
@@ -119,15 +119,18 @@ class App(ctk.CTk):
         r += 1
 
         # Sliders
-        self._add_slider(r, "Dyn Range:", "slider_range", 10, 80, 40, "dB floor")
+        self._add_slider(r, "Dynamic Range:", "slider_range", 10, 80, 40, "Minimum dB floor for the plot.\nValues below this are clipped.")
         r += 2
-        self._add_slider(r, "Tick Step:", "slider_tick", 1, 20, 10, "Grid step")
+        self._add_slider(r, "Tick Step:", "slider_tick", 1, 20, 10, "Spacing between magnitude grid lines (dB).")
         r += 2
-        self._add_slider(r, "Angle Step:", "slider_angle", 5, 90, 30, "Angle step")
+        self._add_slider(r, "Angle Step:", "slider_angle", 5, 90, 30, "Spacing between angle grid lines (degrees).")
         r += 2
 
         # Calculate Button
-        self.btn_calc = ctk.CTkButton(self.frame_controls, text="CALCULATE", command=self.update_plot, height=40, fg_color="#1f6aa5")
+        self.btn_calc = ctk.CTkButton(self.frame_controls, text="CALCULATE PATTERN", 
+                                      command=self.update_plot,
+                                      height=40,
+                                      fg_color="#1f6aa5")
         self.btn_calc.grid(row=r, column=0, columnspan=2, sticky="ew", padx=10, pady=20)
         r += 1
         
