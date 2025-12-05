@@ -1,6 +1,5 @@
 import customtkinter as ctk
 from matplotlib.figure import Figure
-# AGREGADO: Importamos NavigationToolbar2Tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import numpy as np
 from src.back import AntennaCalculator
@@ -25,108 +24,153 @@ class App(ctk.CTk):
         # CONTROLS FRAME
         self.frame_controls = ctk.CTkFrame(self, width=280)
         self.frame_controls.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        
+        # Configurar 2 columnas: 
+        # Col 0: Etiquetas (Labels)
+        # Col 1: Entradas (Inputs)
+        self.frame_controls.grid_columnconfigure(0, weight=1) 
+        self.frame_controls.grid_columnconfigure(1, weight=2) # Un poco más de peso al input
 
+        # --- PARAMETERS (GRID LAYOUT) ---
+        r = 0 # Contador de filas
+
+        # Title
         self.lbl_title = ctk.CTkLabel(self.frame_controls, text="Parameters", font=("Arial", 20, "bold"))
-        self.lbl_title.pack(pady=20)
+        self.lbl_title.grid(row=r, column=0, columnspan=2, pady=(15, 15))
+        r += 1
 
-        # 1. Number of antennas (N)
-        self.lbl_n = ctk.CTkLabel(self.frame_controls, text="Number of Antennas (N):")
-        self.lbl_n.pack(pady=(5, 0))
+        # 1. N Antennas
+        self.lbl_n = ctk.CTkLabel(self.frame_controls, text="N Antennas:")
+        self.lbl_n.grid(row=r, column=0, sticky="e", padx=5, pady=5)
+        
         self.entry_n = ctk.CTkEntry(self.frame_controls)
         self.entry_n.insert(0, "4")
-        self.entry_n.pack(pady=5)
         self.entry_n.bind("<FocusOut>", lambda e: self.update_plot())
+        self.entry_n.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
+        r += 1
 
-        # 2. Separation (d/lambda)
-        self.lbl_d = ctk.CTkLabel(self.frame_controls, text="Separation (d/λ):")
-        self.lbl_d.pack(pady=(5, 0))
+        # 2. Separation
+        self.lbl_d = ctk.CTkLabel(self.frame_controls, text="Sep (d/λ):")
+        self.lbl_d.grid(row=r, column=0, sticky="e", padx=5, pady=5)
+
         self.entry_d = ctk.CTkEntry(self.frame_controls)
         self.entry_d.insert(0, "0.5")
-        self.entry_d.pack(pady=5)
         self.entry_d.bind("<FocusOut>", lambda e: self.update_plot())
+        self.entry_d.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
+        r += 1
 
-        # 3. Phase Difference (Beta)
-        self.lbl_beta = ctk.CTkLabel(self.frame_controls, text="Phase Diff (β in degrees):")
-        self.lbl_beta.pack(pady=(5, 0))
+        # 3. Phase Diff
+        self.lbl_beta = ctk.CTkLabel(self.frame_controls, text="Phase (β°):")
+        self.lbl_beta.grid(row=r, column=0, sticky="e", padx=5, pady=5)
+
         self.entry_beta = ctk.CTkEntry(self.frame_controls)
         self.entry_beta.insert(0, "0")
-        self.entry_beta.pack(pady=5)
         self.entry_beta.bind("<FocusOut>", lambda e: self.update_plot())
+        self.entry_beta.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
+        r += 1
         
-        # 4. Currents
-        self.lbl_currents = ctk.CTkLabel(self.frame_controls, text="Currents (CSV, e.g., '1, 0.5, 1'):")
-        self.lbl_currents.pack(pady=(5, 0))
-        self.entry_currents = ctk.CTkEntry(self.frame_controls)
+        # 4. Currents (Ocupa 2 filas para legibilidad: Label arriba, Input abajo)
+        self.lbl_currents = ctk.CTkLabel(self.frame_controls, text="Currents (CSV):")
+        self.lbl_currents.grid(row=r, column=0, sticky="w", padx=10, pady=(10, 0))
+        
+        self.entry_currents = ctk.CTkEntry(self.frame_controls, placeholder_text="1, 0.5, 1")
         self.entry_currents.insert(0, "1") 
-        self.entry_currents.pack(pady=5)
         self.entry_currents.bind("<FocusOut>", lambda e: self.update_plot())
+        self.entry_currents.grid(row=r, column=1, sticky="ew", padx=5, pady=(10, 0))
+        r += 1
 
         # 5. Element Type
-        self.lbl_type = ctk.CTkLabel(self.frame_controls, text="Element Type:")
-        self.lbl_type.pack(pady=(15, 0))
+        self.lbl_type = ctk.CTkLabel(self.frame_controls, text="Type:")
+        self.lbl_type.grid(row=r, column=0, sticky="e", padx=5, pady=5)
+
         self.combo_type = ctk.CTkComboBox(self.frame_controls, 
                                           values=["Isotropic", "Dipole (λ/2)", "Monopole (λ/4)"],
                                           command=lambda value: self.update_plot())
         self.combo_type.set("Isotropic")
-        self.combo_type.pack(pady=5)
+        self.combo_type.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
+        r += 1
 
         # View (Plane)
-        self.lbl_view = ctk.CTkLabel(self.frame_controls, text="View (Plane):")
-        self.lbl_view.pack(pady=(10, 0))
+        self.lbl_view = ctk.CTkLabel(self.frame_controls, text="View:")
+        self.lbl_view.grid(row=r, column=0, sticky="e", padx=5, pady=5)
+
         self.combo_view = ctk.CTkComboBox(self.frame_controls,
                                           values=["Vertical (XZ)", "Horizontal (XY)"],
                                           command=lambda value: self.update_plot())
         self.combo_view.set("Vertical (XZ)")
-        self.combo_view.pack(pady=5)
+        self.combo_view.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
+        r += 1
 
         # Plot Type
-        self.lbl_plot_type = ctk.CTkLabel(self.frame_controls, text="Plot Type:")
-        self.lbl_plot_type.pack(pady=(10, 0))
+        self.lbl_plot_type = ctk.CTkLabel(self.frame_controls, text="Plot:")
+        self.lbl_plot_type.grid(row=r, column=0, sticky="e", padx=5, pady=5)
+
         self.seg_plot_type = ctk.CTkSegmentedButton(self.frame_controls,
                                                      values=["Polar", "Cartesian"],
                                                      command=lambda value: self.update_plot())
         self.seg_plot_type.set("Polar")
-        self.seg_plot_type.pack(pady=5)
+        self.seg_plot_type.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
+        r += 1
+
+        # --- SLIDERS (Compactados) ---
+        
+        # Separador visual
+        ctk.CTkFrame(self.frame_controls, height=2, fg_color="gray30").grid(row=r, column=0, columnspan=2, sticky="ew", padx=10, pady=10)
+        r += 1
 
         # Dynamic Range
-        self.lbl_range = ctk.CTkLabel(self.frame_controls, text="Dynamic Range (dB):")
-        self.lbl_range.pack(pady=(20, 0))
+        self.lbl_range = ctk.CTkLabel(self.frame_controls, text="Dyn Range:")
+        self.lbl_range.grid(row=r, column=0, sticky="w", padx=10)
+        
+        self.lbl_range_val = ctk.CTkLabel(self.frame_controls, text="40 dB", width=50, anchor="e")
+        self.lbl_range_val.grid(row=r, column=1, sticky="e", padx=10)
+        r += 1
+        
         self.slider_range = ctk.CTkSlider(self.frame_controls, from_=10, to=80, number_of_steps=70)
         self.slider_range.set(40)
-        self.slider_range.pack(pady=5)
-        self.lbl_range_val = ctk.CTkLabel(self.frame_controls, text="40 dB")
-        self.lbl_range_val.pack(pady=(0, 5))
         self.slider_range.configure(command=self._slider_event_handler)
+        self.slider_range.grid(row=r, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 10))
+        r += 1
 
         # Tick Step
-        self.lbl_tick = ctk.CTkLabel(self.frame_controls, text="Tick Step (dB):")
-        self.lbl_tick.pack(pady=(10, 0))
+        self.lbl_tick = ctk.CTkLabel(self.frame_controls, text="Tick Step:")
+        self.lbl_tick.grid(row=r, column=0, sticky="w", padx=10)
+
+        self.lbl_tick_val = ctk.CTkLabel(self.frame_controls, text="10 dB", width=50, anchor="e")
+        self.lbl_tick_val.grid(row=r, column=1, sticky="e", padx=10)
+        r += 1
+
         self.slider_tick = ctk.CTkSlider(self.frame_controls, from_=1, to=20, number_of_steps=19)
         self.slider_tick.set(10)
-        self.slider_tick.pack(pady=5)
-        self.lbl_tick_val = ctk.CTkLabel(self.frame_controls, text="10 dB")
-        self.lbl_tick_val.pack(pady=(0, 5))
         self.slider_tick.configure(command=self._tick_slider_event_handler)
+        self.slider_tick.grid(row=r, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 10))
+        r += 1
 
         # Angle Step
-        self.lbl_angle = ctk.CTkLabel(self.frame_controls, text="Angle Step (°):")
-        self.lbl_angle.pack(pady=(10, 0))
+        self.lbl_angle = ctk.CTkLabel(self.frame_controls, text="Angle Step:")
+        self.lbl_angle.grid(row=r, column=0, sticky="w", padx=10)
+
+        self.lbl_angle_val = ctk.CTkLabel(self.frame_controls, text="30°", width=50, anchor="e")
+        self.lbl_angle_val.grid(row=r, column=1, sticky="e", padx=10)
+        r += 1
+
         self.slider_angle = ctk.CTkSlider(self.frame_controls, from_=5, to=90, number_of_steps=17)
         self.slider_angle.set(30)
-        self.slider_angle.pack(pady=5)
-        self.lbl_angle_val = ctk.CTkLabel(self.frame_controls, text="30°")
-        self.lbl_angle_val.pack(pady=(0, 5))
         self.slider_angle.configure(command=self._angle_slider_event_handler)
+        self.slider_angle.grid(row=r, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 10))
+        r += 1
 
-        # Calculate Button
+        # Calculate Button (Grande al final)
         self.btn_calc = ctk.CTkButton(self.frame_controls, text="CALCULATE PATTERN", 
                                       command=self.update_plot,
                                       height=40,
                                       fg_color="#1f6aa5")
-        self.btn_calc.pack(pady=30)
+        self.btn_calc.grid(row=r, column=0, columnspan=2, sticky="ew", padx=10, pady=20)
+        r += 1
         
         self.lbl_status = ctk.CTkLabel(self.frame_controls, text="Ready.", text_color="gray")
-        self.lbl_status.pack(side="bottom", pady=10)
+        self.lbl_status.grid(row=r, column=0, columnspan=2, pady=5)
+
 
         # PLOT FRAME
         self.frame_plot = ctk.CTkFrame(self)
@@ -135,15 +179,13 @@ class App(ctk.CTk):
         # --- CONFIGURACIÓN DEL GRÁFICO ---
         self.fig = Figure(figsize=(5, 5), dpi=100)
         
-        # 1. Canvas (El dibujo en sí)
+        # 1. Canvas
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.frame_plot)
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
         
-        # 2. Toolbar (La "Toolbox" de exportación y zoom)
-        # Se asocia al canvas y al frame padre
+        # 2. Toolbar
         self.toolbar = NavigationToolbar2Tk(self.canvas, self.frame_plot)
         self.toolbar.update()
-        # Se empaqueta debajo del gráfico
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
 
         self.update_plot()
@@ -217,7 +259,6 @@ class App(ctk.CTk):
             else: # Cartesian
                 self.ax = self.fig.add_subplot(111)
                 theta_deg = np.rad2deg(theta)
-                # Shift logic: [0, 360] -> [-180, 180] for display
                 theta_deg_shifted = np.copy(theta_deg)
                 theta_deg_shifted[theta_deg_shifted >= 180] -= 360
                 
