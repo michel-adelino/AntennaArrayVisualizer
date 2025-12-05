@@ -126,26 +126,6 @@ class App(ctk.CTk):
         self._add_slider(r, "Angle Step:", "slider_angle", 5, 90, 30, "Angle step")
         r += 2
 
-        # Results
-        ctk.CTkFrame(self.frame_controls, height=2, fg_color="gray30").grid(row=r, column=0, columnspan=2, sticky="ew", padx=10, pady=10)
-        r += 1
-        
-        self.lbl_res_title = ctk.CTkLabel(self.frame_controls, text="Metrics (Max)", font=("Arial", 16, "bold"))
-        self.lbl_res_title.grid(row=r, column=0, columnspan=2, pady=(5, 5))
-        r += 1
-
-        self.lbl_dir_txt = ctk.CTkLabel(self.frame_controls, text="Directivity:", font=("Arial", 12, "bold"))
-        self.lbl_dir_txt.grid(row=r, column=0, sticky="e", padx=5)
-        self.lbl_res_dir = ctk.CTkLabel(self.frame_controls, text="-- dBi", text_color="#4ea5f5")
-        self.lbl_res_dir.grid(row=r, column=1, sticky="w", padx=5)
-        r += 1
-
-        self.lbl_bw_txt = ctk.CTkLabel(self.frame_controls, text="HPBW:", font=("Arial", 12, "bold"))
-        self.lbl_bw_txt.grid(row=r, column=0, sticky="e", padx=5)
-        self.lbl_res_bw = ctk.CTkLabel(self.frame_controls, text="-- °", text_color="#4ea5f5")
-        self.lbl_res_bw.grid(row=r, column=1, sticky="w", padx=5)
-        r += 1
-
         # Calculate Button
         self.btn_calc = ctk.CTkButton(self.frame_controls, text="CALCULATE", command=self.update_plot, height=40, fg_color="#1f6aa5")
         self.btn_calc.grid(row=r, column=0, columnspan=2, sticky="ew", padx=10, pady=20)
@@ -307,8 +287,6 @@ class App(ctk.CTk):
             d_dbi = 10 * np.log10(d_lin) if d_lin > 0 else 0
             
             self.D_linear = d_lin # Store for cursor usage
-            self.lbl_res_dir.configure(text=f"{d_dbi:.2f} dBi")
-            self.lbl_res_bw.configure(text=f"{hpbw:.1f}°")
 
             # --- CALCULATE PLOT DATA (VISUALIZATION) ---
             theta, total_linear = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view=view)
