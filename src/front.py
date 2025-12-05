@@ -203,7 +203,7 @@ class App(ctk.CTk):
         local_dir = d_max_dbi + db
         
         # Text format
-        text = f"Cursor: {angle_deg:.1f}°, {db:.1f} dB (Norm) | Dir: {local_dir:.2f} dBi"
+        text = f"Cursor: ({angle_deg:.1f}°, {db:.1f}dB), D(°)={local_dir:.2f}dBi"
         self.cursor_text = text
         
         # Update point/line
@@ -341,7 +341,7 @@ class App(ctk.CTk):
                 self.ax.set_xticks(np.arange(-180, 181, angle_step))
                 self.ax.grid(True, alpha=0.5)
 
-            title_text = f"Pattern ({'Horizontal' if 'Horizontal' in view else 'Vertical'}): {el_type}\nN={N}, d={d}λ, β={beta}°, D={d_dbi:.2f} dBi, HPBW={hpbw:.1f}°"
+            title_text = f"Pattern ({'Horizontal' if 'Horizontal' in view else 'Vertical'}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, HPBW={hpbw:.1f}°"
             self.ax.set_title(title_text, va='bottom', fontsize=10)
             self.fig.tight_layout()
             
@@ -357,7 +357,7 @@ class App(ctk.CTk):
                 # Update cursor text
                 angle_deg = np.rad2deg(self.fixed_x) if plot_type == "Polar" else self.fixed_x
                 dir_dbi = 10 * np.log10(self.D_linear) + db if self.D_linear > 0 else 0
-                self.cursor_text = f"Cursor: {angle_deg:.1f}°, {db:.1f} dB, Dir: {dir_dbi:.1f} dBi"
+                self.cursor_text = f"Cursor: ({angle_deg:.1f}°, {db:.1f}dB), D(°)={dir_dbi:.1f}dBi"
             
             self.update_title()
             self.canvas.draw()
