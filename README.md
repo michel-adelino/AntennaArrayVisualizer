@@ -24,6 +24,27 @@ A simple desktop application to calculate and visualize the radiation pattern of
 *   Interactive tooltips for parameter guidance.
 *   Navigation toolbar for zooming, panning, and saving plots.
 
+## Building the Installer
+
+To create an installer for the application, follow these steps:
+
+1. Ensure all dependencies are installed:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Install PyInstaller (if not already installed):
+   ```bash
+   pip install pyinstaller
+   ```
+3. Build the executable using the provided spec file:
+   ```bash
+   pyinstaller AntennaArrayVisualizer.spec
+   ```
+   This generates `AntennaArrayVisualizer.exe` in the `dist` folder.
+4. Install Inno Setup (free tool from [jrsoftware.org](https://jrsoftware.org/isinfo.php)).
+5. Open `innoSetupScript.iss` in Inno Setup Compiler and compile it to create the installer `Installer_AntennaArrayVisualizer.exe` in the `Output` folder.
+
+
 ## Authors
 
 *   *Alejandro Nahuel Heir*

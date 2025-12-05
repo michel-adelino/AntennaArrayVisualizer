@@ -4,6 +4,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 import numpy as np
 import tkinter as tk
 from src.back import AntennaCalculator
+import os
+import sys
 
 # --- CUSTOM TOOLTIP CLASS ---
 class CTkTooltip:
@@ -40,6 +42,13 @@ class App(ctk.CTk):
         self.geometry("1100x750")
         ctk.set_appearance_mode("Dark")
         ctk.set_default_color_theme("blue")
+
+        # Set window icon
+        icon_path = os.path.join(sys._MEIPASS, 'docs', 'icon.ico') if hasattr(sys, '_MEIPASS') else 'docs/icon.ico'
+        try:
+            self.iconbitmap(icon_path)
+        except Exception:
+            pass  # Fallback if icon not found
 
         self.calculator = AntennaCalculator()
         self.update_timer = None
