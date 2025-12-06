@@ -373,8 +373,8 @@ class App(ctk.CTk):
                 self.ax.set_title(f"{base}\n{self.cursor_text}", va='bottom', fontsize=10)
 
     # --- 3D INSET LOGIC ---
-    def draw_3d_inset(self, is_horizontal, array_axis='Z'):
-        """Draws a mini 3D plot to show array orientation and cut plane."""
+    def draw_3d_inset(self, is_horizontal, array_axis, theta=None, af_db=None, dyn_range=40):
+        """Draws a mini 3D plot to show array orientation and cut plane with pattern."""
         # Add inset axes at bottom left (0.0, 0.0) with width/height 0.25
         ax_geo = self.fig.add_axes([0.0, 0.0, 0.25, 0.25], projection='3d')
         ax_geo.set_axis_off() # floating look
@@ -393,44 +393,48 @@ class App(ctk.CTk):
             ax_geo.text(len_arrow, 0, 0, "X", color='k', fontsize=9, fontweight='bold')
             # Draw Array Elements along X
             x_pos = np.linspace(-0.8, 0.8, 4)
-            ax_geo.scatter(x_pos, np.zeros(4), np.zeros(4), color='black', s=15, alpha=1.0)
+            ax_geo.scatter(x_pos, np.zeros(4), np.zeros(4), color='red', s=15, alpha=1.0)
         else:
             ax_geo.quiver([0], [0], [0], [0], [0], [len_arrow], color='k', arrow_length_ratio=0.2, linewidth=2) # Z
             ax_geo.text(0, 0, len_arrow, "Z", color='k', fontsize=9, fontweight='bold')
             # Draw Array Elements along Z
             z_pos = np.linspace(-0.8, 0.8, 4)
-            ax_geo.scatter(np.zeros(4), np.zeros(4), z_pos, color='black', s=15, alpha=1.0)
+            ax_geo.scatter(np.zeros(4), np.zeros(4), z_pos, color='red', s=15, alpha=1.0)
 
-        # 3. Draw Cut Plane Indicator
+        # 3. Draw Cut Plane with Pattern
+        if theta is not None and af_db is not None:
+            # Normalize af_db for scaling (0 to 1)
+            norm_af = (af_db + dyn_range) / dyn_range
+            norm_af = np.clip(norm_af, 0, 1)  # Ensure within range
+            
+            # Scale radius based on normalized power for polar-like plot
+            r = 0.3 + 0.7 * norm_af  # Base radius 0.3, max 1.0
+            
+            if is_horizontal:
+                # Horizontal (XY) cut
+                x_p = r * np.cos(theta)
+                y_p = r * np.sin(theta)
+                z_p = np.zeros_like(theta)
+                ax_geo.plot(x_p, y_p, z_p, color='blue', linewidth=1)
+            else:
+                # Vertical (XZ) cut
+                x_p = r * np.sin(theta)
+                y_p = np.zeros_like(theta)
+                z_p = r * np.cos(theta)
+                ax_geo.plot(x_p, y_p, z_p, color='blue', linewidth=1, alpha=0.8)
+        
+        # Draw outline of the plane
         t = np.linspace(0, 2*np.pi, 60)
         if is_horizontal:
-            # Horizontal (XY) cut - Blue circle on XY plane
             x_c = np.cos(t)
             y_c = np.sin(t)
             z_c = np.zeros_like(t)
-            # Filled disk
-            r = np.linspace(0, 1, 2)
-            R, T = np.meshgrid(r, t)
-            X_fill = R * np.cos(T)
-            Y_fill = R * np.sin(T)
-            Z_fill = np.zeros_like(X_fill)
-            ax_geo.plot_surface(X_fill, Y_fill, Z_fill, color='blue', alpha=0.2)
-            # Outline
-            ax_geo.plot(x_c, y_c, z_c, color='blue', linestyle='--', linewidth=1, alpha=0.8)
+            ax_geo.plot(x_c, y_c, z_c, color='blue', linestyle='--', linewidth=1, alpha=0.5)
         else:
-            # Vertical (XZ) cut - Blue circle on XZ plane
             x_c = np.sin(t)
             y_c = np.zeros_like(t)
             z_c = np.cos(t)
-            # Filled disk
-            r = np.linspace(0, 1, 2)
-            R, T = np.meshgrid(r, t)
-            X_fill = R * np.sin(T)
-            Y_fill = np.zeros_like(X_fill)
-            Z_fill = R * np.cos(T)
-            ax_geo.plot_surface(X_fill, Y_fill, Z_fill, color='blue', alpha=0.2)
-            # Outline
-            ax_geo.plot(x_c, y_c, z_c, color='blue', linestyle='--', linewidth=1, alpha=0.8)
+            ax_geo.plot(x_c, y_c, z_c, color='blue', linestyle='--', linewidth=1, alpha=0.5)
 
         # Set limits to ensure aspect ratio
         limit = 1.2
@@ -666,7 +670,16 @@ class App(ctk.CTk):
             if self.chk_3d.get():
                 is_horiz = "Horizontal" in view if view != "Both" else False  # Default to Vertical for Both
                 axis_letter = 'X' if 'X' in array_axis else 'Z'
-                self.draw_3d_inset(is_horiz, axis_letter)
+                
+                # Determine inset data
+                if view == "Both":
+                    theta_inset = theta_v
+                    af_db_inset = af_db_v
+                else:
+                    theta_inset = theta
+                    af_db_inset = af_db
+                
+                self.draw_3d_inset(is_horiz, axis_letter, theta_inset, af_db_inset, dyn_range)
             
             # Update fixed cursor db and create visuals
             if self.fixed_cursor and self.fixed_x is not None:
