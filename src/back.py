@@ -8,7 +8,7 @@ class AntennaCalculator:
         """
         Calculates pattern based on Array Alignment (Z or X) and View (Vertical/Horizontal).
         """
-        n_points = 360
+        n_points = 1000
         # View identification
         is_view_horizontal = "Horizontal" in view  # Are we looking at Azimuth?
         
@@ -105,14 +105,18 @@ class AntennaCalculator:
         
         # Directivity Estimation
         if "X" in array_axis:
-             # For horizontal array of vertical dipoles, estimation based on principal cut integral
-             denom = np.trapz(power, var_angle) # Simple 1D integral
-             d_lin = 2 * max_p * np.pi / denom if denom > 0 else 0 # Approximation for linear array
+            # For horizontal array (X-axis) of vertical dipoles, the radiation pattern is not a body of revolution.
+            # The directivity estimation here is based on integrating the principal cut (azimuth plane) only.
+            # This is a rough engineering approximation and does not account for the full 3D pattern.
+            # For more accurate directivity, a full 3D integration over all solid angles is required.
+            # See e.g. Balanis, "Antenna Theory", 4th Ed., Section 2.5, for directivity definitions.
+            denom = np.trapz(power, var_angle) # Simple 1D integral over principal cut
+            d_lin = 2 * max_p * np.pi / denom if denom > 0 else 0 # Approximate directivity (linear array, principal cut only)
         else:
-             # Standard Body of Revolution integral
-             integrand = power * np.sin(var_angle)
-             denom = 2 * np.pi * np.trapz(integrand, var_angle)
-             d_lin = 4 * np.pi * max_p / denom if denom > 0 else 0
+            # Standard Body of Revolution integral
+            integrand = power * np.sin(var_angle)
+            denom = 2 * np.pi * np.trapz(integrand, var_angle)
+            d_lin = 4 * np.pi * max_p / denom if denom > 0 else 0
 
         d_dbi = 10*np.log10(d_lin) if d_lin > 0 else 0
         return d_lin, hpbw

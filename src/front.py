@@ -294,14 +294,24 @@ class App(ctk.CTk):
                 cursor_point.set_visible(True)
             else:
                 cursor_point = ax.scatter(x_val, db, color='red', s=50, zorder=10)
-                setattr(self, f"cursor_point{1 if ax == getattr(self, 'ax1', None) else 2 if ax == getattr(self, 'ax2', None) else ''}", cursor_point)
+                if ax == getattr(self, 'ax1', None):
+                    self.cursor_point1 = cursor_point
+                elif ax == getattr(self, 'ax2', None):
+                    self.cursor_point2 = cursor_point
+                else:
+                    self.cursor_point = cursor_point
                 
             if cursor_line:
                 cursor_line.set_xdata([x_val, x_val])
                 cursor_line.set_visible(True)
             else:
                 cursor_line = ax.axvline(x_val, color='red', linestyle='--')
-                setattr(self, f"cursor_line{1 if ax == getattr(self, 'ax1', None) else 2 if ax == getattr(self, 'ax2', None) else ''}", cursor_line)
+                if ax == getattr(self, 'ax1', None):
+                    self.cursor_line1 = cursor_line
+                elif ax == getattr(self, 'ax2', None):
+                    self.cursor_line2 = cursor_line
+                else:
+                    self.cursor_line = cursor_line
 
         self.update_title()
 
@@ -471,6 +481,7 @@ class App(ctk.CTk):
             angle_step = int(self.slider_angle.get())
             plot_type = self.seg_plot_type.get()
             array_axis = self.combo_axis.get()
+            axis_letter = 'X' if 'X' in array_axis else 'Z'
 
             # Currents Parsing
             raw_curr = self.entry_currents.get()
@@ -675,7 +686,6 @@ class App(ctk.CTk):
             # --- DRAW 3D ORIENTATION INSET ---
             if self.chk_3d.get() and view != "Both":
                 is_horiz = "Horizontal" in view
-                axis_letter = 'X' if 'X' in array_axis else 'Z'
                 
                 # Determine inset data
                 theta_inset = theta
