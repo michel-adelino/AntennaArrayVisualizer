@@ -211,6 +211,16 @@ class App(ctk.CTk):
         slider.grid(row=r+1, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 10))
         setattr(self, var_name, slider)
 
+    def _normalize_angle_deg(self, angle_deg):
+        """Normalize an angle in degrees to the interval (-180, 180].
+
+        Matches polar plot labeling where angles > 180° are displayed as negative
+        values (e.g., 350° -> -10°).
+        """
+        if angle_deg > 180:
+            angle_deg -= 360
+        return angle_deg
+
     # --- CURSOR LOGIC ---
     def get_cursor_data(self, event):
         """Returns (angle_deg, db_val, plot_x) from event."""
@@ -223,13 +233,17 @@ class App(ctk.CTk):
                         return None
                     angle_rad = (event.xdata % (2 * np.pi) + 2 * np.pi) % (2 * np.pi)
                     db = np.interp(angle_rad, self.theta_v, self.af_db_v)
-                    return np.rad2deg(angle_rad), db, angle_rad
+                    angle_deg = np.rad2deg(angle_rad)
+                    angle_deg = self._normalize_angle_deg(angle_deg)
+                    return angle_deg, db, angle_rad
                 elif event.inaxes == self.ax2:
                     if event.xdata is None or self.theta_h is None or self.af_db_h is None:
                         return None
                     angle_rad = (event.xdata % (2 * np.pi) + 2 * np.pi) % (2 * np.pi)
                     db = np.interp(angle_rad, self.theta_h, self.af_db_h)
-                    return np.rad2deg(angle_rad), db, angle_rad
+                    angle_deg = np.rad2deg(angle_rad)
+                    angle_deg = self._normalize_angle_deg(angle_deg)
+                    return angle_deg, db, angle_rad
             else:  # Cartesian
                 if event.inaxes == self.ax1:
                     if event.xdata is None or self.theta_deg_sorted_v is None or self.af_db_sorted_v is None:
@@ -250,7 +264,9 @@ class App(ctk.CTk):
                     return None
                 angle_rad = (event.xdata % (2 * np.pi) + 2 * np.pi) % (2 * np.pi)
                 db = np.interp(angle_rad, self.theta_plot, self.af_db_plot)
-                return np.rad2deg(angle_rad), db, angle_rad
+                angle_deg = np.rad2deg(angle_rad)
+                angle_deg = self._normalize_angle_deg(angle_deg)
+                return angle_deg, db, angle_rad
             else:
                 if event.xdata is None or self.theta_deg_sorted is None or self.af_db_sorted is None:
                     return None
@@ -787,6 +803,8 @@ class App(ctk.CTk):
 
                     # Update cursor text
                     angle_deg = np.rad2deg(self.fixed_x) if plot_type == "Polar" else self.fixed_x
+                    if plot_type == "Polar":
+                        angle_deg = self._normalize_angle_deg(angle_deg)
                     dir_dbi = 10 * np.log10(self.D_linear) + db if self.D_linear > 0 else 0
                     txt = f"Cursor: ({angle_deg:.1f}°, {db:.1f}dB), D(°)={dir_dbi:.1f}dBi"
                     
