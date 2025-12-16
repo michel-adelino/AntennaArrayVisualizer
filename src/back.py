@@ -64,23 +64,91 @@ class AntennaCalculator:
 
     def calculate_metrics(self, N, d_lambda, beta_deg, element_type, currents, array_axis="Z"):
         """
-        Metrics calculation adapted for array orientation.
+        Calculates the exact directivity using numerical integration over the complete sphere.
+        Valid for any orientation (Z or X) and element type.
         """
-        theta = np.linspace(0, np.pi, 2000) # Integration variable
+        # 1. Define a spherical grid (Theta: Elevation, Phi: Azimuth)
+        # A resolution of 180x360 is sufficient for engineering precision (<0.1 dB error)
+        n_theta = 180
+        n_phi = 360
+        theta = np.linspace(0, np.pi, n_theta)
+        phi = np.linspace(0, 2 * np.pi, n_phi)
+        
+        # Create 2D meshes (Meshgrid)
+        THETA, PHI = np.meshgrid(theta, phi, indexing='ij') # Shape: (180, 360)
+        
         k = 2 * np.pi
         beta = np.deg2rad(beta_deg)
         indices = np.arange(N) - (N - 1) / 2
         
-        # Determine the "Principal Cut" variable for integration based on axis
+        # 2. Calculate PSI (Spatial phase) in 3D
         if "X" in array_axis:
-            # For X-array, the "Principal Cut" is the Azimuth (XY) plane (Phi variation).
-            # It behaves mathematically identical to the Z-array Elevation cut.
-            var_angle = theta # Treating as 'phi' effectively for calc
-            psi = k * d_lambda * np.cos(var_angle) + beta
-            # Element factor in Azimuth (theta=90) for Vertical Dipole is 1.0 (Omni).
-            EF = np.ones_like(var_angle) 
+            # Array on X: Phase depends on projection onto X: sin(theta)*cos(phi)
+            psi_spatial = k * d_lambda * np.sin(THETA) * np.cos(PHI)
         else:
-            # Z-array (Standard)
+            # Array on Z: Phase depends on projection onto Z: cos(theta)
+            psi_spatial = k * d_lambda * np.cos(THETA)
+            
+        psi = psi_spatial + beta
+
+        # 3. Calculate Array Factor (AF) vectorized
+        AF = np.zeros_like(THETA, dtype=complex)
+        
+        # Vectorized summation (Broadcast indices over the mesh)
+        # Expand dims to multiply: currents[i] * exp(...)
+        for i, n in enumerate(indices):
+            AF += currents[i] * np.exp(1j * n * psi)
+            
+        # 4. Calculate Element Factor (EF)
+        # We assume dipoles are always oriented in Z (Vertical),
+        # so EF only depends on Theta, independent of array orientation.
+        EF_1D = self._get_element_factor(theta, element_type)
+        # Expand EF to 2D to match the mesh (copy along phi)
+        EF = EF_1D[:, np.newaxis] * np.ones_like(PHI) # Explicit broadcasting
+
+        # 5. Total Power U(theta, phi)
+        total_field = np.abs(AF) * EF
+        power = total_field**2
+        max_p = np.max(power)
+        
+        if max_p == 0: return 0, 0
+
+        # 6. Numerical Integration (Double Trapezoidal Integral)
+        # Integral = integral( integral(U * sin(theta) dTheta) dPhi )
+        integrand = power * np.sin(THETA)
+        
+        # Integrate first over Theta (axis=0)
+        int_theta = np.trapz(integrand, theta, axis=0)
+        # Integrate the result over Phi (axis=0 of the resulting vector)
+        total_radiated_power = np.trapz(int_theta, phi)
+        
+        # 7. Directivity
+        if total_radiated_power > 0:
+            d_lin = 4 * np.pi * max_p / total_radiated_power
+        else:
+            d_lin = 0
+
+        # 8. HPBW (Half Power Beam Width)
+        # For HPBW we still use the principal cut as before, since defining HPBW
+        # in 3D is ambiguous without specifying the cut plane.
+        hpbw = self._calculate_hpbw_from_cut(N, d_lambda, beta_deg, element_type, currents, array_axis)
+
+        return d_lin, hpbw
+
+    def _calculate_hpbw_from_cut(self, N, d_lambda, beta_deg, element_type, currents, array_axis):
+        """Auxiliary method to extract HPBW from the principal cut (Refactored original logic)"""
+        theta = np.linspace(0, np.pi, 2000)
+        k = 2 * np.pi
+        beta = np.deg2rad(beta_deg)
+        indices = np.arange(N) - (N - 1) / 2
+        
+        if "X" in array_axis:
+            # Azimuthal Cut (Theta=90, vary Phi which we call 'angle' here)
+            var_angle = theta 
+            psi = k * d_lambda * np.cos(var_angle) + beta
+            EF = np.ones_like(var_angle) # Vertical dipole seen from above is omni
+        else:
+            # Elevation Cut
             var_angle = theta
             psi = k * d_lambda * np.cos(var_angle) + beta
             EF = self._get_element_factor(var_angle, element_type)
@@ -89,36 +157,17 @@ class AntennaCalculator:
         for i, n in enumerate(indices):
             AF += currents[i] * np.exp(1j * n * psi)
             
-        total = np.abs(AF) * EF
-        power = total**2
+        power = (np.abs(AF) * EF)**2
         max_p = np.max(power)
+        if max_p == 0: return 0
         
-        if max_p == 0: return 0, 0
-        
-        # HPBW
         half = 0.5 * max_p
         idx_max = np.argmax(power)
         l, r = idx_max, idx_max
         while l > 0 and power[l] > half: l -= 1
         while r < len(power)-1 and power[r] > half: r += 1
-        hpbw = np.rad2deg(var_angle[r] - var_angle[l])
         
-        # Directivity Estimation
-        if "X" in array_axis:
-            # For horizontal array (X-axis) of vertical dipoles, the radiation pattern is not a body of revolution.
-            # The directivity estimation here is based on integrating the principal cut (azimuth plane) only.
-            # This is a rough engineering approximation and does not account for the full 3D pattern.
-            # For more accurate directivity, a full 3D integration over all solid angles is required.
-            # See e.g. Balanis, "Antenna Theory", 4th Ed., Section 2.5, for directivity definitions.
-            denom = np.trapz(power, var_angle) # Simple 1D integral over principal cut
-            d_lin = 2 * max_p * np.pi / denom if denom > 0 else 0 # Approximate directivity (linear array, principal cut only)
-        else:
-            # Standard Body of Revolution integral
-            integrand = power * np.sin(var_angle)
-            denom = 2 * np.pi * np.trapz(integrand, var_angle)
-            d_lin = 4 * np.pi * max_p / denom if denom > 0 else 0
-
-        return d_lin, hpbw
+        return np.rad2deg(var_angle[r] - var_angle[l])
 
     def _get_element_factor(self, theta, el_type):
         if el_type == "Isotropic": return np.ones_like(theta)
