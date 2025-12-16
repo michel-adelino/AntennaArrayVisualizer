@@ -6,7 +6,6 @@ import tkinter as tk
 from src.back import AntennaCalculator
 import os
 import sys
-from mpl_toolkits.mplot3d import Axes3D
 
 # --- CUSTOM TOOLTIP CLASS ---
 class CTkTooltip:
