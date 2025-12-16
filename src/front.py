@@ -347,8 +347,14 @@ class App(ctk.CTk):
             self.canvas.draw_idle() # Optimized redraw
 
     def on_click(self, event):
-        if event.inaxes != self.ax and self.combo_view.get() != "Both": return
-        if self.combo_view.get() == "Both" and event.inaxes not in [getattr(self, 'ax1', None), getattr(self, 'ax2', None)]: return
+        # Ensure the click happened on a valid axes depending on the current view
+        view_is_both = self.combo_view.get() == "Both"
+        if view_is_both:
+            if event.inaxes not in [getattr(self, 'ax1', None), getattr(self, 'ax2', None)]:
+                return
+        else:
+            if event.inaxes != getattr(self, 'ax', None):
+                return
         
         if self.fixed_cursor:
             # Unfreeze
