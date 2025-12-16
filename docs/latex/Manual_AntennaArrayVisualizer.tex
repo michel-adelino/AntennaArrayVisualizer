@@ -63,7 +63,7 @@ El objetivo de este software es proporcionar una herramienta gráfica para el es
 
 \section{Fundamentos Teóricos y Algoritmos}
 
-El software implementa un motor de cálculo vectorial que sigue el proceso físico de radiación, operando primero con amplitudes de campo complejo (fasores) y convirtiéndolos posteriormente a densidad de potencia para la integración volumétrica. A continuación se detalla la cadena de procesamiento matemático.
+El software implementa cálculo vectorial que sigue el proceso físico de radiación, operando primero con amplitudes de campo complejo (fasores) y convirtiéndolos posteriormente a densidad de potencia para la integración volumétrica. A continuación se detalla la cadena de procesamiento matemático.
 
 \subsection{Teorema de Multiplicación de Diagramas (Campos)}
 El principio fundamental utilizado es que el campo eléctrico total radiado por un arreglo es el producto del patrón de campo del elemento individual y el factor de arreglo. Notar que esta operación se realiza a nivel de campo eléctrico ($E$):
@@ -101,7 +101,7 @@ El cálculo de $\psi$ varía según el eje de alineación seleccionado:
 \subsubsection{Factor de Elemento}
 Se modelan tres tipos de elementos radiantes. El software asume que los elementos individuales (dipolos/monopolos) están siempre orientados verticalmente (paralelos al eje Z), independientemente de que el eje del arreglo sea Z o X. Esto configura un ``Arreglo Colineal'' cuando el eje es Z, y un ``Arreglo de Elementos Paralelos'' cuando el eje es X.
 
-Las siguientes expresiones corresponden al Patrón de Campo Normalizado, denotado como $f(\theta)$:
+Las siguientes expresiones corresponden al diagrama (patrón) de campo normalizado, denotado como $f(\theta)$:
 \begin{itemize}
     \item \textbf{Isotrópica:} $f(\theta) = 1$.
     \item \textbf{Dipolo de $\lambda/2$:} Asumiendo orientación vertical (paralelo a Z):
@@ -176,7 +176,7 @@ La ventana principal se divide en el panel de parámetros (izquierda) y el área
     \centering
     \fbox{\begin{minipage}{0.9\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{gui-overview.png}
+        \includegraphics[width=\textwidth]{gui-preview.png}
     \end{minipage}}
     \caption{Interfaz principal mostrando controles y gráfico polar.}
     \label{fig:gui}
