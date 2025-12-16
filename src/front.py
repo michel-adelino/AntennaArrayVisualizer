@@ -389,36 +389,36 @@ class App(ctk.CTk):
                 self.ax.set_title(f"{base}\n{self.cursor_text}", va='bottom', fontsize=10)
 
     # --- 3D INSET LOGIC ---
-    def draw_3d_inset(self, is_horizontal, array_axis, theta=None, af_db=None, dyn_range=40):
+    def draw_3d_inset(self, is_horizontal, array_axis, theta=None, af_db=None, dyn_range=40, inset_pos=[0.0, 0.0, 0.25, 0.25], theta_h=None, af_db_h=None):
         """Draws a mini 3D plot to show array orientation and cut plane with pattern."""
-        # Add inset axes at bottom left (0.0, 0.0) with width/height 0.25
-        ax_geo = self.fig.add_axes([0.0, 0.0, 0.25, 0.25], projection='3d')
+        # Add inset axes at specified position
+        ax_geo = self.fig.add_axes(inset_pos, projection='3d')
         ax_geo.set_axis_off()  # Turn off axes for floating look.
         
         # 1. Draw Axis Arrows
         len_arrow = 1.5
         if array_axis != 'X':
             ax_geo.quiver([0], [0], [0], [len_arrow], [0], [0], color='r', arrow_length_ratio=0.2, linewidth=1) # X
-            ax_geo.text(len_arrow, 0, 0, "X", color='r', fontsize=8)
+            ax_geo.text(len_arrow + 0.3, 0, 0, "X", color='r', fontsize=8)
         
         ax_geo.quiver([0], [0], [0], [0], [len_arrow], [0], color='g', arrow_length_ratio=0.2, linewidth=1) # Y
-        ax_geo.text(0, len_arrow, 0, "Y", color='g', fontsize=8)
+        ax_geo.text(0, len_arrow + 0.3, 0, "Y", color='g', fontsize=8)
         
         # Draw Z axis (blue if not array axis)
         if array_axis != 'Z':
             ax_geo.quiver([0], [0], [0], [0], [0], [len_arrow], color='b', arrow_length_ratio=0.2, linewidth=1)
-            ax_geo.text(0, 0, len_arrow, "Z", color='b', fontsize=8)
+            ax_geo.text(0, 0, len_arrow + 0.3, "Z", color='b', fontsize=8)
         
         # Array Axis - Thicker
         if array_axis == 'X':
             ax_geo.quiver([0], [0], [0], [len_arrow], [0], [0], color='k', arrow_length_ratio=0.2, linewidth=2) # X
-            ax_geo.text(len_arrow, 0, 0, "X", color='k', fontsize=9, fontweight='bold')
+            ax_geo.text(len_arrow + 0.3, 0, 0, "X", color='k', fontsize=9, fontweight='bold')
             # Draw Array Elements along X
             x_pos = np.linspace(-0.8, 0.8, 4)
             ax_geo.scatter(x_pos, np.zeros(4), np.zeros(4), color='red', s=15, alpha=1.0)
         else:
             ax_geo.quiver([0], [0], [0], [0], [0], [len_arrow], color='k', arrow_length_ratio=0.2, linewidth=2) # Z
-            ax_geo.text(0, 0, len_arrow, "Z", color='k', fontsize=9, fontweight='bold')
+            ax_geo.text(0, 0, len_arrow + 0.3, "Z", color='k', fontsize=9, fontweight='bold')
             # Draw Array Elements along Z
             z_pos = np.linspace(-0.8, 0.8, 4)
             ax_geo.scatter(np.zeros(4), np.zeros(4), z_pos, color='red', s=15, alpha=1.0)
@@ -444,6 +444,24 @@ class App(ctk.CTk):
                 y_p = np.zeros_like(theta)
                 z_p = r * np.cos(theta)
                 ax_geo.plot(x_p, y_p, z_p, color='blue', linewidth=1, alpha=0.8)
+        
+        # If horizontal data provided (for Both views), plot it too
+        if theta_h is not None and af_db_h is not None:
+            norm_af_h = (af_db_h + dyn_range) / dyn_range
+            norm_af_h = np.clip(norm_af_h, 0, 1)
+            r_h = 0.3 + 0.7 * norm_af_h
+            # Horizontal (XY) cut
+            x_p_h = r_h * np.cos(theta_h)
+            y_p_h = r_h * np.sin(theta_h)
+            z_p_h = np.zeros_like(theta_h)
+            ax_geo.plot(x_p_h, y_p_h, z_p_h, color='red', linewidth=1, alpha=0.8)
+            
+            # Dashed unitary circle for horizontal
+            t = np.linspace(0, 2*np.pi, 60)
+            x_c = np.cos(t)
+            y_c = np.sin(t)
+            z_c = np.zeros_like(t)
+            ax_geo.plot(x_c, y_c, z_c, color='red', linestyle='--', linewidth=1, alpha=0.5)
         
         # Draw outline of the plane
         t = np.linspace(0, 2*np.pi, 60)
@@ -549,7 +567,7 @@ class App(ctk.CTk):
                     self.ax1.set_ylim(-dyn_range, 0)
                     self.ax1.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax1.plot(theta_v, af_db_v, color='#1f77b4', linewidth=2)
-                    self.ax1.grid(True, alpha=0.5)
+                    self.ax1.grid(True, alpha=0.5, linestyle='--')
                     
                     directions_v = {'+X': 0, '+Z': np.pi/2, '-X': np.pi, '-Z': 3*np.pi/2}
                     for label, theta_rad in directions_v.items():
@@ -569,8 +587,8 @@ class App(ctk.CTk):
                     self.ax2.set_thetagrids(angles_deg, labels)
                     self.ax2.set_ylim(-dyn_range, 0)
                     self.ax2.set_yticks(np.arange(-dyn_range, 1, tick_step))
-                    self.ax2.plot(theta_h, af_db_h, color='#1f77b4', linewidth=2)
-                    self.ax2.grid(True, alpha=0.5)
+                    self.ax2.plot(theta_h, af_db_h, color='red', linewidth=2)
+                    self.ax2.grid(True, alpha=0.5, linestyle='--')
                     
                     directions_h = {'+X': 0, '+Y': np.pi/2, '-X': np.pi, '-Y': 3*np.pi/2}
                     for label, theta_rad in directions_h.items():
@@ -592,8 +610,9 @@ class App(ctk.CTk):
                     
                     self.ax.set_ylim(-dyn_range, 0)
                     self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
-                    self.ax.plot(theta, af_db, color='#1f77b4', linewidth=2)
-                    self.ax.grid(True, alpha=0.5)
+                    color = 'red' if "Horizontal" in view else '#1f77b4'
+                    self.ax.plot(theta, af_db, color=color, linewidth=2)
+                    self.ax.grid(True, alpha=0.5, linestyle='--')
                     
                     # Add axis direction labels
                     if "Horizontal" in view:
@@ -626,7 +645,7 @@ class App(ctk.CTk):
                     self.ax1.set_ylim(-dyn_range, 0)
                     self.ax1.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax1.set_xticks(np.arange(-180, 181, angle_step))
-                    self.ax1.grid(True, alpha=0.5)
+                    self.ax1.grid(True, alpha=0.5, linestyle='--')
                     self.ax1.set_title("Vertical (XZ)", fontsize=10)
                     self.ax1_base_title = "Vertical (XZ)"
                     
@@ -642,7 +661,7 @@ class App(ctk.CTk):
                     self.theta_deg_sorted_h = theta_deg_shifted_h[sort_idx_h]
                     self.af_db_sorted_h = af_db_h[sort_idx_h]
                     
-                    self.ax2.plot(self.theta_deg_sorted_h, self.af_db_sorted_h, color='#1f77b4', linewidth=2)
+                    self.ax2.plot(self.theta_deg_sorted_h, self.af_db_sorted_h, color='red', linewidth=2)
                     self.ax2.set_xlabel("Angle (°)")
                     self.ax2.set_ylabel("Normalized Power (dB)")
                     self.ax2.set_xlim(-180, 180)
@@ -650,7 +669,7 @@ class App(ctk.CTk):
                     self.ax2.set_ylim(-dyn_range, 0)
                     self.ax2.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax2.set_xticks(np.arange(-180, 181, angle_step))
-                    self.ax2.grid(True, alpha=0.5)
+                    self.ax2.grid(True, alpha=0.5, linestyle='--')
                     self.ax2.set_title("Horizontal (XY)", fontsize=10)
                     self.ax2_base_title = "Horizontal (XY)"
                     
@@ -670,7 +689,8 @@ class App(ctk.CTk):
                     self.theta_deg_sorted = theta_deg_shifted[sort_idx]
                     self.af_db_sorted = af_db[sort_idx]
                     
-                    self.ax.plot(self.theta_deg_sorted, self.af_db_sorted, color='#1f77b4', linewidth=2)
+                    color = 'red' if "Horizontal" in view else '#1f77b4'
+                    self.ax.plot(self.theta_deg_sorted, self.af_db_sorted, color=color, linewidth=2)
                     self.ax.set_xlabel("Angle (°)")
                     self.ax.set_ylabel("Normalized Power (dB)")
                     self.ax.set_xlim(-180, 180)
@@ -678,7 +698,7 @@ class App(ctk.CTk):
                     self.ax.set_ylim(-dyn_range, 0)
                     self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax.set_xticks(np.arange(-180, 181, angle_step))
-                    self.ax.grid(True, alpha=0.5)
+                    self.ax.grid(True, alpha=0.5, linestyle='--')
 
             if view == "Both":
                 title_text = f"Pattern (Both Views, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, HPBW={hpbw:.1f}°"
@@ -689,17 +709,24 @@ class App(ctk.CTk):
                 self.ax_base_title = title_text
             
             # --- DRAW 3D ORIENTATION INSET ---
-            if self.chk_3d.get() and view != "Both":
-                is_horiz = "Horizontal" in view
-                
-                # Determine inset data
-                theta_inset = theta
-                af_db_inset = af_db
-                
-                self.draw_3d_inset(is_horiz, axis_letter, theta_inset, af_db_inset, dyn_range)
+            if self.chk_3d.get():
+                if view == "Both":
+                    is_horiz = False  # Not used for Both
+                    theta_inset_v = theta_v
+                    af_db_inset_v = af_db_v
+                    theta_inset_h = theta_h
+                    af_db_inset_h = af_db_h
+                    inset_pos = [0.375, 0.0, 0.25, 0.25]  # Center bottom
+                    self.draw_3d_inset(is_horiz, axis_letter, theta_inset_v, af_db_inset_v, dyn_range, inset_pos, theta_inset_h, af_db_inset_h)
+                else:
+                    is_horiz = "Horizontal" in view
+                    theta_inset = theta
+                    af_db_inset = af_db
+                    inset_pos = [0.0, 0.0, 0.25, 0.25]  # Bottom left
+                    self.draw_3d_inset(is_horiz, axis_letter, theta_inset, af_db_inset, dyn_range, inset_pos)
             
             # Apply tight_layout only if no 3D inset (to avoid warning with incompatible axes)
-            if not (self.chk_3d.get() and view != "Both"):
+            if not self.chk_3d.get():
                 self.fig.tight_layout(rect=[0, 0.05, 1, 0.95])
             
             # Update fixed cursor db and create visuals
