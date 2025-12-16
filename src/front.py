@@ -316,8 +316,15 @@ class App(ctk.CTk):
         self.update_title()
 
     def on_mouse_move(self, event):
-        if event.inaxes != self.ax and self.combo_view.get() != "Both": return
-        if self.fixed_cursor or (self.combo_view.get() != "Both" and self.theta_plot is None): return
+        if self.fixed_cursor:
+            return
+        view_is_both = self.combo_view.get() == "Both"
+        if view_is_both:
+            if event.inaxes not in [getattr(self, 'ax1', None), getattr(self, 'ax2', None)]:
+                return
+        else:
+            if event.inaxes != self.ax or self.theta_plot is None:
+                return
         data = self.get_cursor_data(event)
         if data:
             self.last_x, self.last_db = data[2], data[1]
