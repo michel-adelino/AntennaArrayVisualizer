@@ -388,6 +388,11 @@ class App(ctk.CTk):
         ax_geo.quiver([0], [0], [0], [0], [len_arrow], [0], color='g', arrow_length_ratio=0.2, linewidth=1) # Y
         ax_geo.text(0, len_arrow, 0, "Y", color='g', fontsize=8)
         
+        # Draw Z axis (blue if not array axis)
+        if array_axis != 'Z':
+            ax_geo.quiver([0], [0], [0], [0], [0], [len_arrow], color='b', arrow_length_ratio=0.2, linewidth=1)
+            ax_geo.text(0, 0, len_arrow, "Z", color='b', fontsize=8)
+        
         # Array Axis - Thicker
         if array_axis == 'X':
             ax_geo.quiver([0], [0], [0], [len_arrow], [0], [0], color='k', arrow_length_ratio=0.2, linewidth=2) # X
