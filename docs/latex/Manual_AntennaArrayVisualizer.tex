@@ -1,18 +1,14 @@
 \documentclass[a4paper,11pt]{article}
-\usepackage[utf8]{inputenc}
 \usepackage[spanish,mexico]{babel}
 \usepackage[T1]{fontenc}
-\usepackage{lmodern}
 \usepackage{graphicx}
 \usepackage{amsmath, amssymb}
 \usepackage{geometry}
 \usepackage{hyperref}
 \usepackage{fancyhdr}
 \usepackage{float}
-\usepackage{parskip}
 \usepackage{xcolor}
 \usepackage{listings}
-\usepackage[final]{microtype}
 
 % Configuración de hipervínculos
 \hypersetup{
@@ -39,13 +35,16 @@
 \author{
     \textbf{Trabajo Especial - 22.21 Electromagnetismo} \\[1ex]
     Instituto Tecnológico de Buenos Aires (ITBA) \\[0.5cm]
-    \textit{Autores:} \\
-    Alejandro Nahuel Heir \\
-    María de Guadalupe Voss \\[0.5cm]
+    Autores: \\
+    \sl{Alejandro Nahuel Heir} \\
+    \sl{María de Guadalupe Voss} \\[0.5cm]
     {\small Código Fuente (GitHub):}\\
     {\small \url{https://github.com/alheir/AntennaArrayVisualizer}}
 }
 \date{\today}
+
+\let\CheckCommand\providecommand
+\usepackage[final]{microtype}
 
 \begin{document}
 
@@ -96,7 +95,7 @@ El arreglo se ubica sobre el eje X.
 Se modelan tres tipos de elementos (asumiendo alineación vertical de los dipolos):
 \begin{itemize}
     \item \textbf{Isotrópica:} $F(\theta) = 1$.
-    \item \textbf{Dipolo de $\lambda/2$:} $F(\theta) = \frac{\cos(\frac{\pi}{2}\cos\theta)}{\sin\theta}$.
+    \item \textbf{Dipolo de $\lambda/2$:} $F(\theta) = \left(\frac{\cos(\frac{\pi}{2}\cos\theta)}{\sin\theta}\right)^2$.
     \item \textbf{Monopolo de $\lambda/4$:} Igual al dipolo, pero nulo para $\theta > \pi/2$ (tierra infinita).
 \end{itemize}
 
@@ -169,7 +168,7 @@ Cada campo de entrada cuenta con \textbf{Tooltips} interactivos: al pasar el mou
 \end{itemize}
 
 \subsubsection{Cursor Interactivo}
-El software incluye un cursor de medicióno:
+El software incluye un cursor de medición:
 \begin{itemize}
     \item \textbf{Hover:} Al pasar el mouse sobre la curva, se muestra el ángulo, la ganancia en dB y la directividad local.
     \item \textbf{Click (Fijar):} Al hacer clic en el gráfico, el cursor se ``congela'' en esa posición, permitiendo analizar un punto específico mientras se modifican otros parámetros. Haga clic nuevamente para liberar.
@@ -185,7 +184,7 @@ En el título del gráfico se calculan y muestran automáticamente:
 
 \section{Bibliografía}
 \begin{itemize}
-    \item Apuntes de Cátedra, Lic. Patricio A. Marcó, Asignatura 22.21 Electromagnetismo, ITBA.
+    \item Marcó, P. A. (2025). Apuntes de Cátedra, Asignatura 22.21 Electromagnetismo, ITBA.
     \item Balanis, C. A. (2016). \textit{Antenna Theory: Analysis and Design} (4th ed.). John Wiley \& Sons. Caps. 4 y 6.
 \end{itemize}
 
