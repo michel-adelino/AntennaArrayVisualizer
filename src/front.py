@@ -381,8 +381,9 @@ class App(ctk.CTk):
         
         # 1. Draw Axis Arrows
         len_arrow = 1.5
-        ax_geo.quiver([0], [0], [0], [len_arrow], [0], [0], color='r', arrow_length_ratio=0.2, linewidth=1) # X
-        ax_geo.text(len_arrow, 0, 0, "X", color='r', fontsize=8)
+        if array_axis != 'X':
+            ax_geo.quiver([0], [0], [0], [len_arrow], [0], [0], color='r', arrow_length_ratio=0.2, linewidth=1) # X
+            ax_geo.text(len_arrow, 0, 0, "X", color='r', fontsize=8)
         
         ax_geo.quiver([0], [0], [0], [0], [len_arrow], [0], color='g', arrow_length_ratio=0.2, linewidth=1) # Y
         ax_geo.text(0, len_arrow, 0, "Y", color='g', fontsize=8)
