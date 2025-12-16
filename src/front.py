@@ -592,8 +592,12 @@ class App(ctk.CTk):
                     self.ax1.grid(True, alpha=0.5, linestyle='--')
                     
                     directions_v = {'+X': 0, '+Z': np.pi/2, '-X': np.pi, '-Z': 3*np.pi/2}
+                    # Place direction labels slightly below the top (0 dB) so they remain
+                    # visible for small dynamic ranges. Offset is min(2 dB, 20% of dyn_range).
+                    offset = min(2, dyn_range * 0.2)
+                    label_r = -offset
                     for label, theta_rad in directions_v.items():
-                        self.ax1.text(theta_rad, -2, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
+                        self.ax1.text(theta_rad, label_r, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
                     self.ax1.set_title("Vertical (XZ)", fontsize=10)
                     self.ax1_base_title = "Vertical (XZ)"
                     
@@ -613,8 +617,10 @@ class App(ctk.CTk):
                     self.ax2.grid(True, alpha=0.5, linestyle='--')
                     
                     directions_h = {'+X': 0, '+Y': np.pi/2, '-X': np.pi, '-Y': 3*np.pi/2}
+                    offset = min(2, dyn_range * 0.2)
+                    label_r = -offset
                     for label, theta_rad in directions_h.items():
-                        self.ax2.text(theta_rad, -2, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
+                        self.ax2.text(theta_rad, label_r, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
                     self.ax2.set_title("Horizontal (XY)", fontsize=10)
                     self.ax2_base_title = "Horizontal (XY)"
                     
@@ -641,8 +647,10 @@ class App(ctk.CTk):
                         directions = {'+X': 0, '+Y': np.pi/2, '-X': np.pi, '-Y': 3*np.pi/2}
                     else:
                         directions = {'+X': 0, '+Z': np.pi/2, '-X': np.pi, '-Z': 3*np.pi/2}
+                    offset = min(2, dyn_range * 0.2)
+                    label_r = -offset
                     for label, theta_rad in directions.items():
-                        self.ax.text(theta_rad, -2, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
+                        self.ax.text(theta_rad, label_r, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
             
             else: # Cartesian
                 if view == "Both":
