@@ -115,7 +115,7 @@ class AntennaCalculator:
              d_lin = 4 * np.pi * max_p / denom if denom > 0 else 0
 
         d_dbi = 10*np.log10(d_lin) if d_lin > 0 else 0
-        return d_dbi, hpbw
+        return d_lin, hpbw
 
     def _get_element_factor(self, theta, el_type):
         if el_type == "Isotropic": return np.ones_like(theta)
