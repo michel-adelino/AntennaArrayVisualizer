@@ -62,7 +62,7 @@ class App(ctk.CTk):
         self.fixed_cursor = False
         self.fixed_x = None
         self.fixed_db = None
-        self.fixed_axis_idx = None # 0 for ax1/single, 1 for ax2
+        self.fixed_subplot_idx = None # 0 for ax1/single, 1 for ax2
         self.last_x = None
         self.last_db = None
         self.cursor_point = None
@@ -337,7 +337,7 @@ class App(ctk.CTk):
         if self.fixed_cursor:
             # Unfreeze
             self.fixed_cursor = False
-            self.fixed_axis_idx = None
+            self.fixed_subplot_idx = None
             self.cursor_text = ""
             self.cursor_text1 = ""
             self.cursor_text2 = ""
@@ -360,11 +360,11 @@ class App(ctk.CTk):
                 # Determine axis index
                 if self.combo_view.get() == "Both":
                     if event.inaxes == getattr(self, 'ax1', None):
-                        self.fixed_axis_idx = 0
+                        self.fixed_subplot_idx = 0
                     elif event.inaxes == getattr(self, 'ax2', None):
-                        self.fixed_axis_idx = 1
+                        self.fixed_subplot_idx = 1
                 else:
-                    self.fixed_axis_idx = 0
+                    self.fixed_subplot_idx = 0
                 
                 self.update_cursor_visuals(data[0], data[1], data[2], is_fixed=True, ax=event.inaxes)
                 self.canvas.draw()
@@ -393,7 +393,7 @@ class App(ctk.CTk):
         """Draws a mini 3D plot to show array orientation and cut plane with pattern."""
         # Add inset axes at bottom left (0.0, 0.0) with width/height 0.25
         ax_geo = self.fig.add_axes([0.0, 0.0, 0.25, 0.25], projection='3d')
-        ax_geo.set_axis_off() # floating look
+        ax_geo.set_axis_off()  # Turn off axes for floating look.
         
         # 1. Draw Axis Arrows
         len_arrow = 1.5
@@ -709,7 +709,7 @@ class App(ctk.CTk):
                 target_db_arr = None
                 
                 if view == "Both":
-                    if self.fixed_axis_idx == 0: # Left / Vertical
+                    if self.fixed_subplot_idx == 0: # Left / Vertical
                         target_ax = self.ax1
                         if plot_type == "Polar":
                             target_theta = self.theta_v
@@ -717,7 +717,7 @@ class App(ctk.CTk):
                         else:
                             target_theta = self.theta_deg_sorted_v
                             target_db_arr = self.af_db_sorted_v
-                    elif self.fixed_axis_idx == 1: # Right / Horizontal
+                    elif self.fixed_subplot_idx == 1: # Right / Horizontal
                         target_ax = self.ax2
                         if plot_type == "Polar":
                             target_theta = self.theta_h
@@ -748,7 +748,7 @@ class App(ctk.CTk):
                     
                     # Store references
                     if view == "Both":
-                        if self.fixed_axis_idx == 0:
+                        if self.fixed_subplot_idx == 0:
                             self.cursor_point1 = pt
                             self.cursor_line1 = ln
                         else:
@@ -764,14 +764,14 @@ class App(ctk.CTk):
                     txt = f"Cursor: ({angle_deg:.1f}°, {db:.1f}dB), D(°)={dir_dbi:.1f}dBi"
                     
                     if view == "Both":
-                        if self.fixed_axis_idx == 0: self.cursor_text1 = txt
+                        if self.fixed_subplot_idx == 0: self.cursor_text1 = txt
                         else: self.cursor_text2 = txt
                     else:
                         self.cursor_text = txt
                 else:
                     # If we can't restore (e.g. switched view and lost context), unfreeze
                     self.fixed_cursor = False
-                    self.fixed_axis_idx = None
+                    self.fixed_subplot_idx = None
             
             self.update_title()
             self.canvas.draw()

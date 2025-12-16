@@ -23,8 +23,8 @@ class AntennaCalculator:
                 plot_angle = np.linspace(0, 2*np.pi, n_points) # Phi
                 theta_for_ef = np.full(n_points, np.pi/2)
                 # Array on Z -> Depends on cos(theta). Theta is 90 -> cos(90)=0.
-                # Phase is constant (Omnidirectional Array Factor)
-                psi = k * d_lambda * 0 + beta 
+                # Phase is constant (Omnidirectional Array Factor) when theta=90° for vertical arrays
+                psi = beta 
             else: # Elevation Cut (XZ)
                 # Theta varies 0-360. Phi fixed at 0.
                 plot_angle = np.linspace(0, 2*np.pi, n_points) # Theta
@@ -118,7 +118,6 @@ class AntennaCalculator:
             denom = 2 * np.pi * np.trapz(integrand, var_angle)
             d_lin = 4 * np.pi * max_p / denom if denom > 0 else 0
 
-        d_dbi = 10*np.log10(d_lin) if d_lin > 0 else 0
         return d_lin, hpbw
 
     def _get_element_factor(self, theta, el_type):
