@@ -130,7 +130,7 @@ class AntennaCalculator:
             mask = np.abs(denominator) > tol
             num = np.cos((np.pi/2)*np.cos(theta[mask]))
             ef[mask] = np.abs(num/denominator[mask])
-            if "Monopole" in el_type: ef = ef * (theta <= np.pi/2)
+            if "Monopole" in el_type: ef = ef * ((theta <= np.pi/2) | (theta >= 3*np.pi/2))
             return ef
         return np.ones_like(theta)
     
