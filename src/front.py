@@ -687,7 +687,6 @@ class App(ctk.CTk):
                 title_text = f"Pattern ({view}, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, HPBW={hpbw:.1f}°"
                 self.ax.set_title(title_text, va='bottom', fontsize=10)
                 self.ax_base_title = title_text
-            self.fig.tight_layout()
             
             # --- DRAW 3D ORIENTATION INSET ---
             if self.chk_3d.get() and view != "Both":
@@ -698,6 +697,10 @@ class App(ctk.CTk):
                 af_db_inset = af_db
                 
                 self.draw_3d_inset(is_horiz, axis_letter, theta_inset, af_db_inset, dyn_range)
+            
+            # Apply tight_layout only if no 3D inset (to avoid warning with incompatible axes)
+            if not (self.chk_3d.get() and view != "Both"):
+                self.fig.tight_layout(rect=[0, 0.05, 1, 0.95])
             
             # Update fixed cursor db and create visuals
             if self.fixed_cursor and self.fixed_x is not None:
