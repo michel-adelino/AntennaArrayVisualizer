@@ -330,6 +330,15 @@ class App(ctk.CTk):
 
         self.update_title()
 
+    def _hide_all_cursors(self):
+        """Hide any visible cursor markers and lines on the current figure."""
+        if self.cursor_point: self.cursor_point.set_visible(False)
+        if self.cursor_line: self.cursor_line.set_visible(False)
+        if self.cursor_point1: self.cursor_point1.set_visible(False)
+        if self.cursor_line1: self.cursor_line1.set_visible(False)
+        if self.cursor_point2: self.cursor_point2.set_visible(False)
+        if self.cursor_line2: self.cursor_line2.set_visible(False)
+
     def on_mouse_move(self, event):
         if self.fixed_cursor:
             return
@@ -365,12 +374,7 @@ class App(ctk.CTk):
             self.cursor_text2 = ""
             self.update_title()
             # Hide all cursors
-            if self.cursor_point: self.cursor_point.set_visible(False)
-            if self.cursor_line: self.cursor_line.set_visible(False)
-            if self.cursor_point1: self.cursor_point1.set_visible(False)
-            if self.cursor_line1: self.cursor_line1.set_visible(False)
-            if self.cursor_point2: self.cursor_point2.set_visible(False)
-            if self.cursor_line2: self.cursor_line2.set_visible(False)
+            self._hide_all_cursors()
             self.canvas.draw()
         else:
             # Freeze

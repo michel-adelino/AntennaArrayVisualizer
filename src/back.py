@@ -130,7 +130,12 @@ class AntennaCalculator:
 
         # 8. HPBW (Half Power Beam Width)
         # For HPBW we still use the principal cut as before, since defining HPBW
-        # in 3D is ambiguous without specifying the cut plane.
+        # in full 3D is ambiguous without specifying the cut plane. Concretely:
+        # - If the array is on Z (vertical axis), HPBW is computed from the
+        #   elevation (XZ) cut (theta variation).
+        # - If the array is on X (horizontal axis), HPBW is computed from the
+        #   azimuthal (XY) cut (phi variation at theta=90°), as implemented in
+        #   `_calculate_hpbw_from_cut`.
         hpbw = self._calculate_hpbw_from_cut(N, d_lambda, beta_deg, element_type, currents, array_axis)
 
         return d_lin, hpbw
@@ -170,6 +175,13 @@ class AntennaCalculator:
         return np.rad2deg(var_angle[r] - var_angle[l])
 
     def _get_element_factor(self, theta, el_type):
+        """Return element factor vs theta for given element type.
+
+        NOTE: This implementation assumes element orientation is vertical (Z-axis).
+        Therefore the element factor depends only on theta (elevation). If you
+        need to support arbitrary element orientations, this method should be
+        extended and documented accordingly.
+        """
         if el_type == "Isotropic": return np.ones_like(theta)
         elif "Dipole" in el_type or "Monopole" in el_type:
             denominator = np.sin(theta)
