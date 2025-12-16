@@ -186,3 +186,5 @@ Output/
 
 # Backup files
 *.bak
+
+*.pdf
