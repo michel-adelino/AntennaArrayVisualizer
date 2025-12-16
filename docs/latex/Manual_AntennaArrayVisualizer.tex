@@ -1,0 +1,239 @@
+\documentclass[a4paper]{article}
+\usepackage[spanish,mexico]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{microtype}
+
+% Configuración de hipervínculos
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan,
+    pdftitle={Manual de Usuario - Visualizador de Arreglos},
+    pdfauthor={Alejandro Nahuel Heir}
+}
+
+% Configuración de márgenes
+\geometry{margin=1in}
+
+% Configuración de encabezado y pie de página
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\small Manual de Usuario - Visualizador de Arreglos}
+\lhead{\small ITBA - 22.21 Electromagnetismo}
+\rfoot{\small Página \thepage}
+
+\title{
+    \vspace{-2cm}
+    \textbf{\Huge Manual de Usuario} \\[0.5cm]
+    \textbf{\Large Visualizador de Arreglos de Antenas}
+}
+\author{
+    \textbf{Trabajo Especial - 22.21 Electromagnetismo} \\[1ex]
+    \textit{Instituto Tecnológico de Buenos Aires (ITBA)} \\[0.5cm]
+    Autores: \\
+    \sl{Alejandro Nahuel Heir} \\
+    \sl{María de Guadalupe Voss} \\[0.5cm]
+    {\small Código Fuente (GitHub):}\\
+    {\small \url{https://github.com/alheir/AntennaArrayVisualizer}}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+\noindent Este documento describe el funcionamiento, base teórica e instalación del software \textit{Antenna Array Visualizer}. La aplicación permite el diseño y análisis interactivo de arreglos lineales de antenas. El software implementa cálculo vectorial que realiza integración numérica esférica completa, permitiendo obtener la directividad exacta tanto para arreglos verticales (simetría de revolución) como horizontales (sin simetría azimutal). Desarrollado en Python utilizando \texttt{NumPy} para el cálculo matricial y \texttt{CustomTkinter} para la interfaz gráfica.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Introducción}
+El objetivo de este software es proporcionar una herramienta gráfica para el estudio del teorema de multiplicación de diagramas. Este programa permite modificar parámetros como la fase progresiva ($\beta$), la distancia eléctrica ($d/\lambda$) y la distribución de corrientes ($I_n$) en tiempo real, facilitando la comprensión de fenómenos como el \textit{beam steering} (direccionamiento del haz) y el \textit{beam shaping} (conformado del haz).
+
+\section{Fundamentos Teóricos y Algoritmos}
+
+El software implementa un motor de cálculo vectorial que sigue el proceso físico de radiación, operando primero con amplitudes de campo complejo (fasores) y convirtiéndolos posteriormente a densidad de potencia para la integración volumétrica. A continuación se detalla la cadena de procesamiento matemático.
+
+\subsection{Teorema de Multiplicación de Diagramas (Campos)}
+El principio fundamental utilizado es que el campo eléctrico total radiado por un arreglo es el producto del patrón de campo del elemento individual y el factor de arreglo. Notar que esta operación se realiza a nivel de campo eléctrico ($E$):
+
+\begin{equation}
+E_{total}(\theta, \phi) = f_{elemento}(\theta, \phi) \times AF(\theta, \phi)
+\end{equation}
+
+Donde $f_{elemento}$ es el factor de forma del radiador individual y $AF$ es el Factor de Arreglo.
+
+\subsection{Definición de los Factores}
+
+\subsubsection{Factor de Arreglo}
+El software calcula el $AF$ sumando las contribuciones de fase de cada uno de los $N$ elementos:
+
+\begin{equation}
+AF(\theta, \phi) = \sum_{n=0}^{N-1} I_n e^{j(n \psi)}
+\end{equation}
+
+El factor $\psi$ es la fase espacial total. Esta incluye el desfase geométrico y el parámetro $\beta$, el cual representa el \textit{desfasaje eléctrico progresivo} entre elementos adyacentes. El usuario modifica $\beta$ para controlar la dirección del haz principal (\textit{beam steering}).
+
+El cálculo de $\psi$ varía según el eje de alineación seleccionado:
+
+\begin{itemize}
+    \item \textit{Alineación Vertical (Eje Z):} La fase depende solo de la elevación. Esto genera simetría de revolución.
+    \begin{equation}
+    \psi_z(\theta) = k d \cos(\theta) + \beta
+    \end{equation}
+    \item \textit{Alineación Horizontal (Eje X):} La simetría de revolución se rompe. La fase depende de la proyección sobre el eje X, involucrando ambos ángulos:
+    \begin{equation}
+    \psi_x(\theta, \phi) = k d \sin(\theta) \cos(\phi) + \beta
+    \end{equation}
+\end{itemize}
+
+\subsubsection{Factor de Elemento}
+Se modelan tres tipos de elementos radiantes. El software asume que los elementos individuales (dipolos/monopolos) están siempre orientados verticalmente (paralelos al eje Z), independientemente de que el eje del arreglo sea Z o X. Esto configura un ``Arreglo Colineal'' cuando el eje es Z, y un ``Arreglo de Elementos Paralelos'' cuando el eje es X.
+
+Las siguientes expresiones corresponden al Patrón de Campo Normalizado, denotado como $f(\theta)$:
+\begin{itemize}
+    \item \textbf{Isotrópica:} $f(\theta) = 1$.
+    \item \textbf{Dipolo de $\lambda/2$:} Asumiendo orientación vertical (paralelo a Z):
+    \begin{equation}
+        f(\theta) = \frac{\cos(\frac{\pi}{2}\cos\theta)}{\sin\theta}
+    \end{equation}
+    \item \textbf{Monopolo de $\lambda/4$:} Modelado como un dipolo sobre un plano de tierra infinito en $\theta=\pi/2$:
+    \begin{equation}
+        f(\theta) = \begin{cases} 
+        \frac{\cos(\frac{\pi}{2}\cos\theta)}{\sin\theta} & \text{si } 0 \le \theta \le \frac{\pi}{2} \\
+        0 & \text{si } \frac{\pi}{2} < \theta \le \pi 
+        \end{cases}
+    \end{equation}
+\end{itemize}
+
+\textit{Nota: En la bibliografía es común ver estas expresiones elevadas al cuadrado. Eso corresponde al diagrama de potencia normalizado $F(\theta) = |f(\theta)|^2$. El software realiza esa conversión en el siguiente paso para el cálculo de métricas.}
+
+\subsection{Intensidad de Radiación y Potencia Total}
+Una vez obtenido el campo complejo total $E_{total}$, el software calcula la Intensidad de Radiación $U(\theta, \phi)$, la cual es proporcional al cuadrado de la magnitud del campo:
+
+\begin{equation}
+U(\theta, \phi) \propto |E_{total}(\theta, \phi)|^2 = |f_{elemento} \cdot AF|^2
+\end{equation}
+
+Para obtener la Potencia Total Radiada ($P_{rad}$), el sistema ejecuta una integración numérica esférica sobre una malla de $180 \times 360$ puntos:
+
+\begin{equation}
+P_{rad} = \int_{0}^{2\pi} \int_{0}^{\pi} U(\theta, \phi) \sin(\theta) \,d\theta \,d\phi
+\end{equation}
+
+\subsection{Cálculo de Directividad}
+La directividad máxima se obtiene relacionando la intensidad máxima del haz principal con la potencia total radiada calculada en el paso anterior:
+
+\begin{equation}
+D_{max} = \frac{4\pi U_{max}}{P_{rad}}
+\end{equation}
+
+El resultado se visualiza en la interfaz en dBi: $D[dBi] = 10 \log_{10}(D_{max})$.
+
+\subsection{Ancho de Haz de Media Potencia}
+El software determina el HPBW analizando numéricamente el corte principal del diagrama de radiación. El algoritmo busca los ángulos $\theta_{1}$ y $\theta_{2}$ adyacentes al máximo principal donde la intensidad de radiación normalizada cae a la mitad de su valor pico (-3 dB):
+
+\begin{equation}
+U_{norm}(\theta_{HP}) = 0.5 \quad \Rightarrow \quad HPBW = |\theta_{1} - \theta_{2}|
+\end{equation}
+
+\newpage
+
+\section{Instalación}
+
+\subsection{Requisitos del Sistema}
+\begin{itemize}
+    \item Sistema Operativo: Windows 10/11 (64 bits).
+    \item Espacio en disco: 150 MB aproximadamente.
+\end{itemize}
+
+\subsection{Instrucciones}
+El software se distribuye con un instalador automatizado.
+
+\begin{enumerate}
+    \item Ejecute el archivo \texttt{Installer\_AntennaArrayVisualizer.exe}.
+    \item Siga las instrucciones del asistente para seleccionar la carpeta de destino.
+    \item Al finalizar, podrá iniciar la aplicación desde el acceso directo en el escritorio.
+\end{enumerate}
+
+\section{Uso}
+
+\subsection{Interfaz de Usuario (GUI)}
+La ventana principal se divide en el panel de parámetros (izquierda) y el área de visualización (derecha).
+
+\begin{figure}[H]
+    \centering
+    \fbox{\begin{minipage}{0.9\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{gui-overview.png}
+    \end{minipage}}
+    \caption{Interfaz principal mostrando controles y gráfico polar.}
+    \label{fig:gui}
+\end{figure}
+
+Al colocar el cursor sobre cualquier parámetro de entrada o botón de opción, aparecerá una burbuja de ayuda (\textit{tooltip}) con una breve definición, el rango de valores aceptados o la instrucción de uso específica para facilitar la configuración de los parámetros.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\begin{minipage}{0.35\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{tooltip-preview.png}
+    \end{minipage}}
+    \caption{Mensaje de ayuda (\textit{tooltip}) al pasar el cursor sobre algún parámetro.}
+    \label{fig:tooltip}
+\end{figure}
+
+\subsection{Configuración de Parámetros}
+La aplicación recalcula el patrón automáticamente al modificar los valores y presionar \textit{Enter} o cambiar el foco.
+
+\begin{itemize}
+    \item \texttt{N Antennas:} Cantidad total de elementos.
+    \item \texttt{Separation ($d/\lambda$):} Distancia eléctrica entre elementos.
+    \item \texttt{Phase ($\beta$):} Fase progresiva en grados. Permite realizar escaneo electrónico del haz principal.
+    \item \texttt{Intensities:} Control de excitación de corrientes.
+    \begin{itemize}
+        \item \textit{Escalar:} Un solo valor aplica a todo el arreglo (Uniforme).
+        \item \textit{Vector:} Una lista separada por comas (ej. ``1, 0.5, 0.5, 1'') define un arreglo no uniforme.
+    \end{itemize}
+    \item \texttt{Type:} Elemento base (Isotrópica, Dipolo, Monopolo).
+    \item \texttt{Array Axis:} Define la geometría del arreglo (Z o X). Esto altera drásticamente la simetría 3D del patrón resultante.
+\end{itemize}
+
+\subsection{Visualización y Herramientas}
+
+\subsubsection{Modos de Vista}
+\begin{itemize}
+    \item \textit{View:} Permite alternar entre cortes 2D (Vertical XZ, Horizontal XY) o \texttt{Both} para visualización simultánea.
+    \item \textit{Plot:} Representación en coordenadas Polares o Cartesianas.
+    \item \textit{3D Orientation:} Activa un gráfico vectorial incrustado que muestra la disposición física de los dipolos y el plano de corte activo en tiempo real.
+\end{itemize}
+
+\subsubsection{Cursor Interactivo y Métricas}
+El sistema proporciona análisis en tiempo real:
+\begin{itemize}
+    \item \textit{Cursor:} Al pasar el mouse, se muestra el ángulo y la ganancia local. Al hacer clic, el cursor se fija para facilitar la lectura de datos.
+    \item \textit{Métricas en Título:}
+    \begin{itemize}
+        \item $D_{max}$ (dBi): Directividad máxima calculada por integración esférica.
+        \item $HPBW$ ($^\circ$): Ancho del lóbulo principal a -3dB.
+    \end{itemize}
+\end{itemize}
+
+\section{Bibliografía}
+\begin{itemize}
+    \item Marcó, P. A. (2025). Apuntes de Cátedra, Asignatura 22.21 Electromagnetismo, ITBA.
+    \item Balanis, C. A. (2016). \textit{Antenna Theory: Analysis and Design} (4th ed.). John Wiley \& Sons. Caps. 4 (Linear Arrays) y 2 (Fundamental Parameters).
+\end{itemize}
+
+\end{document}

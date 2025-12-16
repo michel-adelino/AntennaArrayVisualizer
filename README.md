@@ -13,7 +13,7 @@ A simple desktop application to calculate and visualize the radiation pattern of
     *   Separation between antennas (d/λ).
     *   Progressive phase shift (β in degrees) for beam steering.
     *   Current intensities for each element (supports uniform or custom distributions).
-*   Multiple views: Vertical (Elevation/Theta) and Horizontal (Azimuth/Phi) planes.
+*   Multiple views: Vertical (Elevation/Theta), Horizontal (Azimuth/Phi), and Both (dual view visualization).
 *   Plot types: Polar (directional) and Cartesian (rectangular) coordinate systems.
 *   Customizable plot settings:
     *   Dynamic range (dB floor).
