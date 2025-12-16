@@ -673,17 +673,13 @@ class App(ctk.CTk):
             self.fig.tight_layout()
             
             # --- DRAW 3D ORIENTATION INSET ---
-            if self.chk_3d.get():
-                is_horiz = "Horizontal" in view if view != "Both" else False  # Default to Vertical for Both
+            if self.chk_3d.get() and view != "Both":
+                is_horiz = "Horizontal" in view
                 axis_letter = 'X' if 'X' in array_axis else 'Z'
                 
                 # Determine inset data
-                if view == "Both":
-                    theta_inset = theta_v
-                    af_db_inset = af_db_v
-                else:
-                    theta_inset = theta
-                    af_db_inset = af_db
+                theta_inset = theta
+                af_db_inset = af_db
                 
                 self.draw_3d_inset(is_horiz, axis_letter, theta_inset, af_db_inset, dyn_range)
             
