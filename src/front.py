@@ -115,7 +115,7 @@ class App(ctk.CTk):
         self.lbl_type = ctk.CTkLabel(self.frame_controls, text="Type:", cursor="hand2")
         self.lbl_type.grid(row=r, column=0, sticky="e", padx=5, pady=5)
         CTkTooltip(self.lbl_type, "Radiation pattern of the individual element.\n(Multiplied by Array Factor).")
-        self.combo_type = ctk.CTkComboBox(self.frame_controls, values=["Isotropic", "Dipole (λ/2)", "Monopole (λ/4)"], command=lambda v: self.update_plot())
+        self.combo_type = ctk.CTkComboBox(self.frame_controls, values=["Isotropic", "Dipole (λ/2, Vertical Z)", "Monopole (λ/4, Vertical Z)"], command=lambda v: self.update_plot())
         self.combo_type.set("Isotropic")
         self.combo_type.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
         r += 1
