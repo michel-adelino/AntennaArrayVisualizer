@@ -46,7 +46,7 @@ class App(ctk.CTk):
         self.PLOT_COLOR_VERTICAL = '#1f77b4'  # Blue for vertical
         self.PLOT_COLOR_HORIZONTAL = '#d62728'  # Red for horizontal
 
-        self.title("Antenna Array Visualizer - ITBA 22.21")
+        self.title("Antenna Array Visualizer - ITBA 22.21 - v0.2")
         self.geometry("1100x750")
         ctk.set_appearance_mode("Dark")
         ctk.set_default_color_theme("blue")

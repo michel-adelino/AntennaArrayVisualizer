@@ -3,7 +3,7 @@
 ; Non-commercial use only
 
 #define MyAppName "Antenna Array Visualizer"
-#define MyAppVersion "0.1"
+#define MyAppVersion "0.2"
 #define MyAppPublisher "ITBA"
 #define MyAppURL "https://github.com/alheir/AntennaArrayVisualizer"
 #define MyAppExeName "AntennaArrayVisualizer.exe"
