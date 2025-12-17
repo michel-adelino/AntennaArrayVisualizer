@@ -153,7 +153,6 @@ class AntennaCalculator:
         elif cut == "azimuth":
             # Azimuth Cut: vary phi from 0 to 2pi, theta=pi/2
             var_angle = np.linspace(0, 2 * np.pi, 2000)
-            theta_fixed = np.pi / 2
             if "X" in array_axis:
                 # Array on X: psi = k * d_lambda * sin(theta) * cos(phi) + beta = k * d_lambda * cos(phi) + beta
                 psi = k * d_lambda * np.cos(var_angle) + beta
