@@ -10,7 +10,7 @@ class AntennaCalculator:
         """
         n_points = 1000
         # View identification
-        is_view_horizontal = "Horizontal" in view  # Are we looking at Azimuth?
+        is_view_horizontal = "Azimuth" in view  # Are we looking at Azimuth?
         
         k = 2 * np.pi
         beta = np.deg2rad(beta_deg)

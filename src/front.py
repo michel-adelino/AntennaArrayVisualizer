@@ -138,9 +138,9 @@ class App(ctk.CTk):
 
         self.lbl_view = ctk.CTkLabel(self.frame_controls, text="View:", cursor="hand2")
         self.lbl_view.grid(row=r, column=0, sticky="e", padx=5, pady=5)
-        CTkTooltip(self.lbl_view, "Cut Plane:\nVertical (Elevation/Theta)\nHorizontal (Azimuth/Phi)\nBoth: Show both views")
-        self.combo_view = ctk.CTkComboBox(self.frame_controls, values=["Vertical (XZ)", "Horizontal (XY)", "Both"], command=lambda v: self.update_plot())
-        self.combo_view.set("Vertical (XZ)")
+        CTkTooltip(self.lbl_view, "Cut Plane:\nElevation θ (XZ)\nAzimuth φ (XY)\nBoth: Show both views")
+        self.combo_view = ctk.CTkComboBox(self.frame_controls, values=["Elevation θ (XZ)", "Azimuth φ (XY)", "Both"], command=lambda v: self.update_plot())
+        self.combo_view.set("Elevation θ (XZ)")
         self.combo_view.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
         r += 1
 
@@ -312,8 +312,8 @@ class App(ctk.CTk):
             # ax1 is vertical (blue), ax2 is horizontal (red)
             cursor_color = self.CURSOR_COLOR_HORIZONTAL if ax == getattr(self, 'ax2', None) else self.CURSOR_COLOR_VERTICAL
         else:
-            # Single view: horizontal red, vertical blue
-            cursor_color = self.CURSOR_COLOR_HORIZONTAL if "Horizontal" in view else self.CURSOR_COLOR_VERTICAL
+            # Single view: azimuth red, elevation blue
+            cursor_color = self.CURSOR_COLOR_HORIZONTAL if "Azimuth" in view else self.CURSOR_COLOR_VERTICAL
         
         # Calculate Directivity at this angle: D_max(dBi) + NormalizedPattern(dB)
         d_max_dbi = 10 * np.log10(self.D_linear) if self.D_linear > 0 else 0
@@ -456,6 +456,7 @@ class App(ctk.CTk):
                         self.fixed_subplot_idx = 0
                     
                     self.update_cursor_visuals(data[0], data[1], data[2], is_fixed=True, ax=event.inaxes)
+                    self.update_title()
                     self.canvas.draw()
 
     def update_title(self):
@@ -463,14 +464,12 @@ class App(ctk.CTk):
         if view == "Both":
             if hasattr(self, 'ax1') and self.ax1 and hasattr(self, 'ax1_base_title'):
                 t1 = self.ax1_base_title
-                if self.cursor_text1:
-                    t1 += f"\n{self.cursor_text1}"
+                t1 += f"\n{self.cursor_text1}"
                 self.ax1.set_title(t1, fontsize=10)
             
             if hasattr(self, 'ax2') and self.ax2 and hasattr(self, 'ax2_base_title'):
                 t2 = self.ax2_base_title
-                if self.cursor_text2:
-                    t2 += f"\n{self.cursor_text2}"
+                t2 += f"\n{self.cursor_text2}"
                 self.ax2.set_title(t2, fontsize=10)
         else:
             if hasattr(self, 'ax') and self.ax and hasattr(self, 'ax_base_title'):
@@ -618,6 +617,9 @@ class App(ctk.CTk):
             d_lin, hpbw_elevation, hpbw_azimuth = self.calculator.calculate_metrics(N, d, beta, el_type, currents, array_axis=array_axis)
             d_dbi = 10 * np.log10(d_lin) if d_lin > 0 else 0
             
+            # Create compact config string
+            config_str = f"N={N} | d={d}λ | β={beta}° | In={','.join(map(str,curr_list))} | Type={el_type} | Array Axis={array_axis}"
+            
             self.D_linear = d_lin # Store for cursor usage
 
             # --- CALCULATE PLOT DATA (VISUALIZATION) ---
@@ -649,7 +651,7 @@ class App(ctk.CTk):
                     self.ax2 = self.fig.add_subplot(122, projection='polar')
                     
                     # Vertical view
-                    theta_v, total_linear_v = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Vertical (XZ)", array_axis=array_axis)
+                    theta_v, total_linear_v = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Elevation θ (XZ)", array_axis=array_axis)
                     af_db_v = self.calculator.convert_to_db(total_linear_v, dynamic_range=dyn_range)
                     
                     self.theta_v = theta_v
@@ -673,16 +675,11 @@ class App(ctk.CTk):
                     label_r = -offset
                     for label, theta_rad in directions_v.items():
                         self.ax1.text(theta_rad, label_r, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
-                    self.ax1.set_title(f"Vertical (XZ) - θ (elevation) - HPBWθ={hpbw_elevation:.1f}°", fontsize=10)
-                    self.ax1_base_title = f"Vertical (XZ) - θ (elevation) - HPBWθ={hpbw_elevation:.1f}°"
-                    # Indicate which angle is being varied for this cut
-                    try:
-                        self.ax1.text(0.02, 0.96, "θ (elevation)", transform=self.ax1.transAxes, fontsize=8, va='top', ha='left', color='white')
-                    except Exception:
-                        pass
+                    self.ax1.set_title(f"Elevation θ (XZ) --- HPBW={hpbw_elevation:.1f}°", fontsize=10)
+                    self.ax1_base_title = f"Elevation θ (XZ) --- HPBW={hpbw_elevation:.1f}°"
                     
                     # Horizontal view
-                    theta_h, total_linear_h = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Horizontal (XY)", array_axis=array_axis)
+                    theta_h, total_linear_h = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Azimuth φ (XY)", array_axis=array_axis)
                     af_db_h = self.calculator.convert_to_db(total_linear_h, dynamic_range=dyn_range)
                     
                     self.theta_h = theta_h
@@ -701,13 +698,8 @@ class App(ctk.CTk):
                     label_r = -offset
                     for label, theta_rad in directions_h.items():
                         self.ax2.text(theta_rad, label_r, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
-                    self.ax2.set_title(f"Horizontal (XY) - φ (azimuth) - HPBWφ={hpbw_azimuth:.1f}°", fontsize=10)
-                    self.ax2_base_title = f"Horizontal (XY) - φ (azimuth) - HPBWφ={hpbw_azimuth:.1f}°"
-                    # Indicate which angle is being varied for this cut
-                    try:
-                        self.ax2.text(0.02, 0.96, "φ (azimuth)", transform=self.ax2.transAxes, fontsize=8, va='top', ha='left', color='white')
-                    except Exception:
-                        pass
+                    self.ax2.set_title(f"Azimuth φ (XY) --- HPBW={hpbw_azimuth:.1f}°", fontsize=10)
+                    self.ax2_base_title = f"Azimuth φ (XY) --- HPBW={hpbw_azimuth:.1f}°"
                     
                     self.ax = self.ax1  # For cursor, use first one, but disable cursor for Both
                     
@@ -723,12 +715,12 @@ class App(ctk.CTk):
                     
                     self.ax.set_ylim(-dyn_range, 0)
                     self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
-                    color = self.PLOT_COLOR_HORIZONTAL if "Horizontal" in view else self.PLOT_COLOR_VERTICAL
+                    color = self.PLOT_COLOR_VERTICAL if "Elevation" in view else self.PLOT_COLOR_HORIZONTAL
                     self.ax.plot(theta, af_db, color=color, linewidth=2)
                     self.ax.grid(True, alpha=0.75, linestyle='--')
                     
                     # Add axis direction labels
-                    if "Horizontal" in view:
+                    if "Azimuth" in view:
                         directions = {'+X': 0, '+Y': np.pi/2, '-X': np.pi, '-Y': 3*np.pi/2}
                     else:
                         directions = {'+Z': 0, '+X': np.pi/2, '-Z': np.pi, '-X': 3*np.pi/2}
@@ -736,12 +728,6 @@ class App(ctk.CTk):
                     label_r = -offset
                     for label, theta_rad in directions.items():
                         self.ax.text(theta_rad, label_r, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
-                    # Indicate which angle is being varied for this cut
-                    try:
-                        var_label = 'φ (azimuth)' if "Horizontal" in view else 'θ (elevation)'
-                        self.ax.text(0.02, 0.96, var_label, transform=self.ax.transAxes, fontsize=8, va='top', ha='left', color='white')
-                    except Exception:
-                        pass
             
             else: # Cartesian
                 if view == "Both":
@@ -749,7 +735,7 @@ class App(ctk.CTk):
                     self.ax1 = self.fig.add_subplot(121)
                     
                     # Vertical view
-                    theta_v, total_linear_v = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Vertical (XZ)", array_axis=array_axis)
+                    theta_v, total_linear_v = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Elevation θ (XZ)", array_axis=array_axis)
                     af_db_v = self.calculator.convert_to_db(total_linear_v, dynamic_range=dyn_range)
                     theta_deg_v = np.rad2deg(theta_v)
                     theta_deg_shifted_v = np.copy(theta_deg_v)
@@ -768,13 +754,13 @@ class App(ctk.CTk):
                     self.ax1.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax1.set_xticks(np.arange(-180, 181, angle_step))
                     self.ax1.grid(True, alpha=0.75, linestyle='--')
-                    self.ax1.set_title(f"Vertical (XZ) - θ (elevation) - HPBWθ={hpbw_elevation:.1f}°", fontsize=10)
-                    self.ax1_base_title = f"Vertical (XZ) - θ (elevation) - HPBWθ={hpbw_elevation:.1f}°"
+                    self.ax1.set_title(f"Elevation θ (XZ) --- HPBW={hpbw_elevation:.1f}°", fontsize=10)
+                    self.ax1_base_title = f"Elevation θ (XZ) --- HPBW={hpbw_elevation:.1f}°"
                     
                     self.ax2 = self.fig.add_subplot(122)
                     
                     # Horizontal view
-                    theta_h, total_linear_h = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Horizontal (XY)", array_axis=array_axis)
+                    theta_h, total_linear_h = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Azimuth φ (XY)", array_axis=array_axis)
                     af_db_h = self.calculator.convert_to_db(total_linear_h, dynamic_range=dyn_range)
                     theta_deg_h = np.rad2deg(theta_h)
                     theta_deg_shifted_h = np.copy(theta_deg_h)
@@ -793,8 +779,8 @@ class App(ctk.CTk):
                     self.ax2.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax2.set_xticks(np.arange(-180, 181, angle_step))
                     self.ax2.grid(True, alpha=0.75, linestyle='--')
-                    self.ax2.set_title(f"Horizontal (XY) - φ (azimuth) - HPBWφ={hpbw_azimuth:.1f}°", fontsize=10)
-                    self.ax2_base_title = f"Horizontal (XY) - φ (azimuth) - HPBWφ={hpbw_azimuth:.1f}°"
+                    self.ax2.set_title(f"Azimuth φ (XY) --- HPBW={hpbw_azimuth:.1f}°", fontsize=10)
+                    self.ax2_base_title = f"Azimuth φ (XY) --- HPBW={hpbw_azimuth:.1f}°"
                     
                     self.ax = self.ax1  # For compatibility
                     
@@ -812,10 +798,10 @@ class App(ctk.CTk):
                     self.theta_deg_sorted = theta_deg_shifted[sort_idx]
                     self.af_db_sorted = af_db[sort_idx]
                     
-                    color = self.PLOT_COLOR_HORIZONTAL if "Horizontal" in view else self.PLOT_COLOR_VERTICAL
+                    color = self.PLOT_COLOR_VERTICAL if "Elevation" in view else self.PLOT_COLOR_HORIZONTAL
                     self.ax.plot(self.theta_deg_sorted, self.af_db_sorted, color=color, linewidth=2)
                     # Label the varying angle explicitly depending on the view
-                    self.ax.set_xlabel(r'$\phi$ (°)' if "Horizontal" in view else r'$\theta$ (°)')
+                    self.ax.set_xlabel(r'$\phi$ (°)' if "Azimuth" in view else r'$\theta$ (°)')
                     self.ax.set_ylabel("Normalized Power (dB)")
                     self.ax.set_xlim(-180, 180)
                     self.ax.margins(x=0)
@@ -825,22 +811,20 @@ class App(ctk.CTk):
                     self.ax.grid(True, alpha=0.75, linestyle='--')
 
             if view == "Both":
-                title_text = f"Pattern (Both Views, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi"
-                self.fig.suptitle(title_text, fontsize=10)
+                suptitle_text = f"{config_str}\nDmax={d_dbi:.2f} dBi"
+                self.fig.suptitle(suptitle_text, fontsize=10)
             else:
-                if "Horizontal" in view:
-                    hpbw_display = f"HPBWφ={hpbw_azimuth:.1f}°"
+                if "Azimuth" in view:
+                    plane_name = "Azimuth φ (XY)"
+                    hpbw = hpbw_azimuth
                 else:
-                    hpbw_display = f"HPBWθ={hpbw_elevation:.1f}°"
-                title_text = f"Pattern ({view}, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, {hpbw_display}"
-                self.ax.set_title(title_text, va='bottom', fontsize=10)
+                    plane_name = "Elevation θ (XZ)"
+                    hpbw = hpbw_elevation
+                params_line = f"{config_str} | View={view}"
+                results_line = f"HPBW={hpbw:.1f}° --- Dmax={d_dbi:.2f} dBi"
+                title_text = f"{params_line}\n{results_line}"
+                self.ax.set_title(title_text, fontsize=10)
                 self.ax_base_title = title_text
-                
-                # Add angle label to title
-                angle_label = 'φ (azimuth)' if "Horizontal" in view else 'θ (elevation)'
-                new_title = f"{title_text} - {angle_label}"
-                self.ax.set_title(new_title, va='bottom', fontsize=10)
-                self.ax_base_title = new_title
             
             # --- DRAW 3D ORIENTATION INSET ---
             if self.chk_3d.get():
@@ -853,7 +837,7 @@ class App(ctk.CTk):
                     inset_pos = [0.375, 0.0, 0.25, 0.25]  # Center bottom
                     self.draw_3d_inset(is_horiz, axis_letter, theta_inset_v, af_db_inset_v, dyn_range, inset_pos, theta_inset_h, af_db_inset_h, el_type)
                 else:
-                    is_horiz = "Horizontal" in view
+                    is_horiz = "Azimuth" in view
                     theta_inset = theta
                     af_db_inset = af_db
                     inset_pos = [0.0, 0.0, 0.25, 0.25]  # Bottom left
