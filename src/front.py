@@ -74,6 +74,13 @@ class App(ctk.CTk):
         self.cursor_line2 = None
         self.cursor_text1 = ""
         self.cursor_text2 = ""
+        # Independent cursors for both views
+        self.fixed_cursor1 = False
+        self.fixed_x1 = None
+        self.fixed_db1 = None
+        self.fixed_cursor2 = False
+        self.fixed_x2 = None
+        self.fixed_db2 = None
 
         # --- LAYOUT ---
         self.grid_columnconfigure(1, weight=1)
@@ -340,13 +347,17 @@ class App(ctk.CTk):
         if self.cursor_line2: self.cursor_line2.set_visible(False)
 
     def on_mouse_move(self, event):
-        if self.fixed_cursor:
-            return
         view_is_both = self.combo_view.get() == "Both"
         if view_is_both:
-            if event.inaxes not in [getattr(self, 'ax1', None), getattr(self, 'ax2', None)]:
-                return
+            if event.inaxes == getattr(self, 'ax1', None) and not self.fixed_cursor1:
+                pass  # Allow showing cursor
+            elif event.inaxes == getattr(self, 'ax2', None) and not self.fixed_cursor2:
+                pass  # Allow showing cursor
+            else:
+                return  # Don't show if fixed or not in axes
         else:
+            if self.fixed_cursor:
+                return
             if event.inaxes != self.ax or self.theta_plot is None:
                 return
         data = self.get_cursor_data(event)
@@ -359,41 +370,76 @@ class App(ctk.CTk):
         # Ensure the click happened on a valid axes depending on the current view
         view_is_both = self.combo_view.get() == "Both"
         if view_is_both:
-            if event.inaxes not in [getattr(self, 'ax1', None), getattr(self, 'ax2', None)]:
-                return
-        else:
-            if event.inaxes != getattr(self, 'ax', None):
-                return
-        
-        if self.fixed_cursor:
-            # Unfreeze
-            self.fixed_cursor = False
-            self.fixed_subplot_idx = None
-            self.cursor_text = ""
-            self.cursor_text1 = ""
-            self.cursor_text2 = ""
+            if event.inaxes == getattr(self, 'ax1', None):
+                # Toggle cursor for ax1
+                if self.fixed_cursor1:
+                    self.fixed_cursor1 = False
+                    self.cursor_text1 = ""
+                    if self.cursor_point1: self.cursor_point1.set_visible(False)
+                    if self.cursor_line1: self.cursor_line1.set_visible(False)
+                else:
+                    data = self.get_cursor_data(event)
+                    if data:
+                        self.fixed_cursor1 = True
+                        self.fixed_x1, self.fixed_db1 = data[2], data[1]
+                        angle_deg = np.rad2deg(self.fixed_x1) if self.seg_plot_type.get() == "Polar" else self.fixed_x1
+                        if self.seg_plot_type.get() == "Polar":
+                            angle_deg = self._normalize_angle_deg(angle_deg)
+                        dir_dbi = 10 * np.log10(self.D_linear) + self.fixed_db1 if self.D_linear > 0 else 0
+                        self.cursor_text1 = f"Cursor: ({angle_deg:.1f}°, {self.fixed_db1:.1f}dB), D(°)={dir_dbi:.1f}dBi"
+                        self.update_cursor_visuals(data[0], data[1], data[2], is_fixed=True, ax=event.inaxes)
+            elif event.inaxes == getattr(self, 'ax2', None):
+                # Toggle cursor for ax2
+                if self.fixed_cursor2:
+                    self.fixed_cursor2 = False
+                    self.cursor_text2 = ""
+                    if self.cursor_point2: self.cursor_point2.set_visible(False)
+                    if self.cursor_line2: self.cursor_line2.set_visible(False)
+                else:
+                    data = self.get_cursor_data(event)
+                    if data:
+                        self.fixed_cursor2 = True
+                        self.fixed_x2, self.fixed_db2 = data[2], data[1]
+                        angle_deg = np.rad2deg(self.fixed_x2) if self.seg_plot_type.get() == "Polar" else self.fixed_x2
+                        if self.seg_plot_type.get() == "Polar":
+                            angle_deg = self._normalize_angle_deg(angle_deg)
+                        dir_dbi = 10 * np.log10(self.D_linear) + self.fixed_db2 if self.D_linear > 0 else 0
+                        self.cursor_text2 = f"Cursor: ({angle_deg:.1f}°, {self.fixed_db2:.1f}dB), D(°)={dir_dbi:.1f}dBi"
+                        self.update_cursor_visuals(data[0], data[1], data[2], is_fixed=True, ax=event.inaxes)
             self.update_title()
-            # Hide all cursors
-            self._hide_all_cursors()
             self.canvas.draw()
         else:
-            # Freeze
-            data = self.get_cursor_data(event)
-            if data:
-                self.fixed_cursor = True
-                self.fixed_x, self.fixed_db = data[2], data[1]
-                
-                # Determine axis index
-                if self.combo_view.get() == "Both":
-                    if event.inaxes == getattr(self, 'ax1', None):
-                        self.fixed_subplot_idx = 0
-                    elif event.inaxes == getattr(self, 'ax2', None):
-                        self.fixed_subplot_idx = 1
-                else:
-                    self.fixed_subplot_idx = 0
-                
-                self.update_cursor_visuals(data[0], data[1], data[2], is_fixed=True, ax=event.inaxes)
+            # Existing logic for single view
+            if event.inaxes != getattr(self, 'ax', None):
+                return
+            
+            if self.fixed_cursor:
+                # Unfreeze
+                self.fixed_cursor = False
+                self.fixed_subplot_idx = None
+                self.cursor_text = ""
+                self.update_title()
+                # Hide all cursors
+                self._hide_all_cursors()
                 self.canvas.draw()
+            else:
+                # Freeze
+                data = self.get_cursor_data(event)
+                if data:
+                    self.fixed_cursor = True
+                    self.fixed_x, self.fixed_db = data[2], data[1]
+                    
+                    # Determine axis index
+                    if self.combo_view.get() == "Both":
+                        if event.inaxes == getattr(self, 'ax1', None):
+                            self.fixed_subplot_idx = 0
+                        elif event.inaxes == getattr(self, 'ax2', None):
+                            self.fixed_subplot_idx = 1
+                    else:
+                        self.fixed_subplot_idx = 0
+                    
+                    self.update_cursor_visuals(data[0], data[1], data[2], is_fixed=True, ax=event.inaxes)
+                    self.canvas.draw()
 
     def update_title(self):
         view = self.combo_view.get()
@@ -793,29 +839,38 @@ class App(ctk.CTk):
                 self.fig.tight_layout(rect=[0, 0.05, 1, 0.95])
             
             # Update fixed cursor db and create visuals
-            if self.fixed_cursor and self.fixed_x is not None:
-                target_ax = None
-                target_theta = None
-                target_db_arr = None
-                
-                if view == "Both":
-                    if self.fixed_subplot_idx == 0: # Left / Vertical
-                        target_ax = self.ax1
+            if view == "Both":
+                # Handle independent cursors for each subplot
+                if self.fixed_cursor1 and self.fixed_x1 is not None:
+                    target_theta = self.theta_v if plot_type == "Polar" else self.theta_deg_sorted_v
+                    target_db_arr = self.af_db_v if plot_type == "Polar" else self.af_db_sorted_v
+                    if target_theta is not None and target_db_arr is not None:
                         if plot_type == "Polar":
-                            target_theta = self.theta_v
-                            target_db_arr = self.af_db_v
+                            db = np.interp(self.fixed_x1, target_theta, target_db_arr)
                         else:
-                            target_theta = self.theta_deg_sorted_v
-                            target_db_arr = self.af_db_sorted_v
-                    elif self.fixed_subplot_idx == 1: # Right / Horizontal
-                        target_ax = self.ax2
+                            db = np.interp(self.fixed_x1, target_theta, target_db_arr)
+                        self.fixed_db1 = db
+                        pt = self.ax1.scatter(self.fixed_x1, self.fixed_db1, color='red', s=50, zorder=10)
+                        ln = self.ax1.axvline(self.fixed_x1, color='red', linestyle='--')
+                        self.cursor_point1 = pt
+                        self.cursor_line1 = ln
+
+                if self.fixed_cursor2 and self.fixed_x2 is not None:
+                    target_theta = self.theta_h if plot_type == "Polar" else self.theta_deg_sorted_h
+                    target_db_arr = self.af_db_h if plot_type == "Polar" else self.af_db_sorted_h
+                    if target_theta is not None and target_db_arr is not None:
                         if plot_type == "Polar":
-                            target_theta = self.theta_h
-                            target_db_arr = self.af_db_h
+                            db = np.interp(self.fixed_x2, target_theta, target_db_arr)
                         else:
-                            target_theta = self.theta_deg_sorted_h
-                            target_db_arr = self.af_db_sorted_h
-                else:
+                            db = np.interp(self.fixed_x2, target_theta, target_db_arr)
+                        self.fixed_db2 = db
+                        pt = self.ax2.scatter(self.fixed_x2, self.fixed_db2, color='red', s=50, zorder=10)
+                        ln = self.ax2.axvline(self.fixed_x2, color='red', linestyle='--')
+                        self.cursor_point2 = pt
+                        self.cursor_line2 = ln
+            else:
+                # Existing logic for single view
+                if self.fixed_cursor and self.fixed_x is not None:
                     target_ax = self.ax
                     if plot_type == "Polar":
                         target_theta = self.theta_plot
@@ -824,46 +879,27 @@ class App(ctk.CTk):
                         target_theta = self.theta_deg_sorted
                         target_db_arr = self.af_db_sorted
 
-                if target_ax and target_theta is not None and target_db_arr is not None:
-                    if plot_type == "Polar":
-                        db = np.interp(self.fixed_x, target_theta, target_db_arr)
-                    else:
-                        db = np.interp(self.fixed_x, target_theta, target_db_arr)
-                    
-                    self.fixed_db = db
-                    
-                    # Create visuals on the target axis
-                    pt = target_ax.scatter(self.fixed_x, self.fixed_db, color='red', s=50, zorder=10)
-                    ln = target_ax.axvline(self.fixed_x, color='red', linestyle='--')
-                    
-                    # Store references
-                    if view == "Both":
-                        if self.fixed_subplot_idx == 0:
-                            self.cursor_point1 = pt
-                            self.cursor_line1 = ln
+                    if target_ax and target_theta is not None and target_db_arr is not None:
+                        if plot_type == "Polar":
+                            db = np.interp(self.fixed_x, target_theta, target_db_arr)
                         else:
-                            self.cursor_point2 = pt
-                            self.cursor_line2 = ln
-                    else:
+                            db = np.interp(self.fixed_x, target_theta, target_db_arr)
+                        
+                        self.fixed_db = db
+                        
+                        # Create visuals on the target axis
+                        pt = target_ax.scatter(self.fixed_x, self.fixed_db, color='red', s=50, zorder=10)
+                        ln = target_ax.axvline(self.fixed_x, color='red', linestyle='--')
+                        
                         self.cursor_point = pt
                         self.cursor_line = ln
 
-                    # Update cursor text
-                    angle_deg = np.rad2deg(self.fixed_x) if plot_type == "Polar" else self.fixed_x
-                    if plot_type == "Polar":
-                        angle_deg = self._normalize_angle_deg(angle_deg)
-                    dir_dbi = 10 * np.log10(self.D_linear) + db if self.D_linear > 0 else 0
-                    txt = f"Cursor: ({angle_deg:.1f}°, {db:.1f}dB), D(°)={dir_dbi:.1f}dBi"
-                    
-                    if view == "Both":
-                        if self.fixed_subplot_idx == 0: self.cursor_text1 = txt
-                        else: self.cursor_text2 = txt
-                    else:
-                        self.cursor_text = txt
-                else:
-                    # If we can't restore (e.g. switched view and lost context), unfreeze
-                    self.fixed_cursor = False
-                    self.fixed_subplot_idx = None
+                        # Update cursor text
+                        angle_deg = np.rad2deg(self.fixed_x) if plot_type == "Polar" else self.fixed_x
+                        if plot_type == "Polar":
+                            angle_deg = self._normalize_angle_deg(angle_deg)
+                        dir_dbi = 10 * np.log10(self.D_linear) + db if self.D_linear > 0 else 0
+                        self.cursor_text = f"Cursor: ({angle_deg:.1f}°, {db:.1f}dB), D(°)={dir_dbi:.1f}dBi"
             
             self.update_title()
             self.canvas.draw()
