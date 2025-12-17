@@ -544,7 +544,7 @@ class App(ctk.CTk):
 
             # --- CALCULATE METRICS (PHYSICS) ---
             # Calculate D and HPBW using the rigorous 3D model (Vertical cut integration)
-            d_lin, hpbw = self.calculator.calculate_metrics(N, d, beta, el_type, currents, array_axis=array_axis)
+            d_lin, hpbw_elevation, hpbw_azimuth = self.calculator.calculate_metrics(N, d, beta, el_type, currents, array_axis=array_axis)
             d_dbi = 10 * np.log10(d_lin) if d_lin > 0 else 0
             
             self.D_linear = d_lin # Store for cursor usage
@@ -602,8 +602,8 @@ class App(ctk.CTk):
                     label_r = -offset
                     for label, theta_rad in directions_v.items():
                         self.ax1.text(theta_rad, label_r, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
-                    self.ax1.set_title("Vertical (XZ) - θ (elevation)", fontsize=10)
-                    self.ax1_base_title = "Vertical (XZ) - θ (elevation)"
+                    self.ax1.set_title(f"Vertical (XZ) - θ (elevation) - HPBWθ={hpbw_elevation:.1f}°", fontsize=10)
+                    self.ax1_base_title = f"Vertical (XZ) - θ (elevation) - HPBWθ={hpbw_elevation:.1f}°"
                     # Indicate which angle is being varied for this cut
                     try:
                         self.ax1.text(0.02, 0.96, "θ (elevation)", transform=self.ax1.transAxes, fontsize=8, va='top', ha='left', color='white')
@@ -630,8 +630,8 @@ class App(ctk.CTk):
                     label_r = -offset
                     for label, theta_rad in directions_h.items():
                         self.ax2.text(theta_rad, label_r, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
-                    self.ax2.set_title("Horizontal (XY) - φ (azimuth)", fontsize=10)
-                    self.ax2_base_title = "Horizontal (XY) - φ (azimuth)"
+                    self.ax2.set_title(f"Horizontal (XY) - φ (azimuth) - HPBWφ={hpbw_azimuth:.1f}°", fontsize=10)
+                    self.ax2_base_title = f"Horizontal (XY) - φ (azimuth) - HPBWφ={hpbw_azimuth:.1f}°"
                     # Indicate which angle is being varied for this cut
                     try:
                         self.ax2.text(0.02, 0.96, "φ (azimuth)", transform=self.ax2.transAxes, fontsize=8, va='top', ha='left', color='white')
@@ -697,8 +697,8 @@ class App(ctk.CTk):
                     self.ax1.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax1.set_xticks(np.arange(-180, 181, angle_step))
                     self.ax1.grid(True, alpha=0.5, linestyle='--')
-                    self.ax1.set_title("Vertical (XZ) - θ (elevation)", fontsize=10)
-                    self.ax1_base_title = "Vertical (XZ) - θ (elevation)"
+                    self.ax1.set_title(f"Vertical (XZ) - θ (elevation) - HPBWθ={hpbw_elevation:.1f}°", fontsize=10)
+                    self.ax1_base_title = f"Vertical (XZ) - θ (elevation) - HPBWθ={hpbw_elevation:.1f}°"
                     
                     self.ax2 = self.fig.add_subplot(122)
                     
@@ -722,8 +722,8 @@ class App(ctk.CTk):
                     self.ax2.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax2.set_xticks(np.arange(-180, 181, angle_step))
                     self.ax2.grid(True, alpha=0.5, linestyle='--')
-                    self.ax2.set_title("Horizontal (XY) - φ (azimuth)", fontsize=10)
-                    self.ax2_base_title = "Horizontal (XY) - φ (azimuth)"
+                    self.ax2.set_title(f"Horizontal (XY) - φ (azimuth) - HPBWφ={hpbw_azimuth:.1f}°", fontsize=10)
+                    self.ax2_base_title = f"Horizontal (XY) - φ (azimuth) - HPBWφ={hpbw_azimuth:.1f}°"
                     
                     self.ax = self.ax1  # For compatibility
                     
@@ -754,10 +754,14 @@ class App(ctk.CTk):
                     self.ax.grid(True, alpha=0.5, linestyle='--')
 
             if view == "Both":
-                title_text = f"Pattern (Both Views, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, HPBW={hpbw:.1f}°"
+                title_text = f"Pattern (Both Views, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi"
                 self.fig.suptitle(title_text, fontsize=10)
             else:
-                title_text = f"Pattern ({view}, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, HPBW={hpbw:.1f}°"
+                if "Horizontal" in view:
+                    hpbw_display = f"HPBWφ={hpbw_azimuth:.1f}°"
+                else:
+                    hpbw_display = f"HPBWθ={hpbw_elevation:.1f}°"
+                title_text = f"Pattern ({view}, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, {hpbw_display}"
                 self.ax.set_title(title_text, va='bottom', fontsize=10)
                 self.ax_base_title = title_text
                 

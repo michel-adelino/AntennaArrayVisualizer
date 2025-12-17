@@ -128,51 +128,71 @@ class AntennaCalculator:
         else:
             d_lin = 0
 
-        # 8. HPBW (Half Power Beam Width)
-        # For HPBW we still use the principal cut as before, since defining HPBW
-        # in full 3D is ambiguous without specifying the cut plane. Concretely:
-        # - If the array is on Z (vertical axis), HPBW is computed from the
-        #   elevation (XZ) cut (theta variation).
-        # - If the array is on X (horizontal axis), HPBW is computed from the
-        #   azimuthal (XY) cut (phi variation at theta=90°), as implemented in
-        #   `_calculate_hpbw_from_cut`.
-        hpbw = self._calculate_hpbw_from_cut(N, d_lambda, beta_deg, element_type, currents, array_axis)
+        # 8. HPBW (Half Power Beam Width) for both planes
+        hpbw_elevation = self._calculate_hpbw_from_cut(N, d_lambda, beta_deg, element_type, currents, array_axis, cut="elevation")
+        hpbw_azimuth = self._calculate_hpbw_from_cut(N, d_lambda, beta_deg, element_type, currents, array_axis, cut="azimuth")
 
-        return d_lin, hpbw
+        return d_lin, hpbw_elevation, hpbw_azimuth
 
-    def _calculate_hpbw_from_cut(self, N, d_lambda, beta_deg, element_type, currents, array_axis):
-        """Auxiliary method to extract HPBW from the principal cut (Refactored original logic)"""
-        theta = np.linspace(0, np.pi, 2000)
+    def _calculate_hpbw_from_cut(self, N, d_lambda, beta_deg, element_type, currents, array_axis, cut="elevation"):
+        """Auxiliary method to extract HPBW from the specified cut plane"""
         k = 2 * np.pi
         beta = np.deg2rad(beta_deg)
         indices = np.arange(N) - (N - 1) / 2
         
-        if "X" in array_axis:
-            # Azimuthal Cut (Theta=90, vary Phi which we call 'angle' here)
-            var_angle = theta 
-            psi = k * d_lambda * np.cos(var_angle) + beta
-            EF = np.ones_like(var_angle) # Vertical dipole seen from above is omni
-        else:
-            # Elevation Cut
-            var_angle = theta
-            psi = k * d_lambda * np.cos(var_angle) + beta
+        if cut == "elevation":
+            # Elevation Cut: vary theta from 0 to pi, phi=0
+            var_angle = np.linspace(0, np.pi, 2000)
+            if "X" in array_axis:
+                # Array on X: psi = k * d_lambda * sin(theta) + beta
+                psi = k * d_lambda * np.sin(var_angle) + beta
+            else:
+                # Array on Z: psi = k * d_lambda * cos(theta) + beta
+                psi = k * d_lambda * np.cos(var_angle) + beta
             EF = self._get_element_factor(var_angle, element_type)
-
+        elif cut == "azimuth":
+            # Azimuth Cut: vary phi from 0 to 2pi, theta=pi/2
+            var_angle = np.linspace(0, 2 * np.pi, 2000)
+            theta_fixed = np.pi / 2
+            if "X" in array_axis:
+                # Array on X: psi = k * d_lambda * sin(theta) * cos(phi) + beta = k * d_lambda * cos(phi) + beta
+                psi = k * d_lambda * np.cos(var_angle) + beta
+            else:
+                # Array on Z: psi = k * d_lambda * cos(theta) + beta = constant (omnidirectional)
+                psi = beta
+            EF = np.ones_like(var_angle)  # At theta=90°, vertical dipole is omnidirectional in azimuth
+        else:
+            raise ValueError("Invalid cut type")
+        
         AF = np.zeros_like(var_angle, dtype=complex)
         for i, n in enumerate(indices):
             AF += currents[i] * np.exp(1j * n * psi)
             
         power = (np.abs(AF) * EF)**2
         max_p = np.max(power)
-        if max_p == 0: return 0
+        if max_p == 0: return 360.0  # Omnidirectional
         
         half = 0.5 * max_p
         idx_max = np.argmax(power)
-        l, r = idx_max, idx_max
-        while l > 0 and power[l] > half: l -= 1
-        while r < len(power)-1 and power[r] > half: r += 1
         
-        return np.rad2deg(var_angle[r] - var_angle[l])
+        # Find left boundary
+        l = idx_max
+        while l > 0 and power[l] > half:
+            l -= 1
+        
+        # Find right boundary
+        r = idx_max
+        while r < len(power) - 1 and power[r] > half:
+            r += 1
+        
+        beamwidth_rad = var_angle[r] - var_angle[l]
+        beamwidth_deg = np.rad2deg(beamwidth_rad)
+        
+        # If the pattern is uniform (omnidirectional), set to 360°
+        if beamwidth_deg >= 359:  # Close to 360
+            return 360.0
+        
+        return beamwidth_deg
 
     def _get_element_factor(self, theta, el_type):
         """Return element factor vs theta for given element type.
