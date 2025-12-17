@@ -38,6 +38,14 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
 
+        # Color constants for cursors
+        self.CURSOR_COLOR_VERTICAL = '#1f77b4'  # Blue for vertical (elevation)
+        self.CURSOR_COLOR_HORIZONTAL = '#d62728'  # Red for horizontal (azimuth)
+        
+        # Color constants for plots
+        self.PLOT_COLOR_VERTICAL = '#1f77b4'  # Blue for vertical
+        self.PLOT_COLOR_HORIZONTAL = '#d62728'  # Red for horizontal
+
         self.title("Antenna Array Visualizer - ITBA 22.21")
         self.geometry("1100x750")
         ctk.set_appearance_mode("Dark")
@@ -298,6 +306,15 @@ class App(ctk.CTk):
             cursor_line = self.cursor_line
             cursor_text_attr = 'cursor_text'
         
+        # Determine color based on view
+        view = self.combo_view.get()
+        if view == "Both":
+            # ax1 is vertical (blue), ax2 is horizontal (red)
+            cursor_color = self.CURSOR_COLOR_HORIZONTAL if ax == getattr(self, 'ax2', None) else self.CURSOR_COLOR_VERTICAL
+        else:
+            # Single view: horizontal red, vertical blue
+            cursor_color = self.CURSOR_COLOR_HORIZONTAL if "Horizontal" in view else self.CURSOR_COLOR_VERTICAL
+        
         # Calculate Directivity at this angle: D_max(dBi) + NormalizedPattern(dB)
         d_max_dbi = 10 * np.log10(self.D_linear) if self.D_linear > 0 else 0
         local_dir = d_max_dbi + db
@@ -315,7 +332,7 @@ class App(ctk.CTk):
                 cursor_point.set_offsets([x_val, db])
                 cursor_point.set_visible(True)
             else:
-                cursor_point = ax.scatter(x_val, db, color='red', s=50, zorder=10)
+                cursor_point = ax.scatter(x_val, db, color=cursor_color, s=50, zorder=10)
                 if ax == getattr(self, 'ax1', None):
                     self.cursor_point1 = cursor_point
                 elif ax == getattr(self, 'ax2', None):
@@ -327,7 +344,7 @@ class App(ctk.CTk):
                 cursor_line.set_xdata([x_val, x_val])
                 cursor_line.set_visible(True)
             else:
-                cursor_line = ax.axvline(x_val, color='red', linestyle='--')
+                cursor_line = ax.axvline(x_val, color=cursor_color, linestyle='--')
                 if ax == getattr(self, 'ax1', None):
                     self.cursor_line1 = cursor_line
                 elif ax == getattr(self, 'ax2', None):
@@ -509,13 +526,13 @@ class App(ctk.CTk):
                 x_p = r * np.cos(theta)
                 y_p = r * np.sin(theta)
                 z_p = np.zeros_like(theta)
-                ax_geo.plot(x_p, y_p, z_p, color='blue', linewidth=1)
+                ax_geo.plot(x_p, y_p, z_p, color=self.PLOT_COLOR_HORIZONTAL, linewidth=1, alpha=0.8)
             else:
                 # Vertical (XZ) cut
                 x_p = r * np.sin(theta)
                 y_p = np.zeros_like(theta)
                 z_p = r * np.cos(theta)
-                ax_geo.plot(x_p, y_p, z_p, color='blue', linewidth=1, alpha=0.8)
+                ax_geo.plot(x_p, y_p, z_p, color=self.PLOT_COLOR_VERTICAL, linewidth=1, alpha=0.8)
         
         # If horizontal data provided (for Both views), plot it too
         if theta_h is not None and af_db_h is not None:
@@ -533,7 +550,7 @@ class App(ctk.CTk):
             x_c = np.cos(t)
             y_c = np.sin(t)
             z_c = np.zeros_like(t)
-            ax_geo.plot(x_c, y_c, z_c, color='red', linestyle='--', linewidth=1, alpha=0.5)
+            ax_geo.plot(x_c, y_c, z_c, color=self.PLOT_COLOR_HORIZONTAL, linestyle='--', linewidth=1, alpha=0.5)
         
         # Draw outline of the plane
         t = np.linspace(0, 2*np.pi, 60)
@@ -541,12 +558,12 @@ class App(ctk.CTk):
             x_c = np.cos(t)
             y_c = np.sin(t)
             z_c = np.zeros_like(t)
-            ax_geo.plot(x_c, y_c, z_c, color='blue', linestyle='--', linewidth=1, alpha=0.5)
+            ax_geo.plot(x_c, y_c, z_c, color=self.PLOT_COLOR_HORIZONTAL, linestyle='--', linewidth=1, alpha=0.5)
         else:
             x_c = np.sin(t)
             y_c = np.zeros_like(t)
             z_c = np.cos(t)
-            ax_geo.plot(x_c, y_c, z_c, color='blue', linestyle='--', linewidth=1, alpha=0.5)
+            ax_geo.plot(x_c, y_c, z_c, color=self.PLOT_COLOR_VERTICAL, linestyle='--', linewidth=1, alpha=0.5)
 
         # Set limits to ensure aspect ratio
         limit = 1.2
@@ -638,8 +655,8 @@ class App(ctk.CTk):
                     self.ax1.set_thetagrids(angles_deg, labels)
                     self.ax1.set_ylim(-dyn_range, 0)
                     self.ax1.set_yticks(np.arange(-dyn_range, 1, tick_step))
-                    self.ax1.plot(theta_v, af_db_v, color='#1f77b4', linewidth=2)
-                    self.ax1.grid(True, alpha=0.5, linestyle='--')
+                    self.ax1.plot(theta_v, af_db_v, color=self.PLOT_COLOR_VERTICAL, linewidth=2)
+                    self.ax1.grid(True, alpha=0.75, linestyle='--')
                     
                     directions_v = {'+Z': 0, '+X': np.pi/2, '-Z': np.pi, '-X': 3*np.pi/2}
                     # Place direction labels slightly below the top (0 dB) so they remain
@@ -668,8 +685,8 @@ class App(ctk.CTk):
                     self.ax2.set_thetagrids(angles_deg, labels)
                     self.ax2.set_ylim(-dyn_range, 0)
                     self.ax2.set_yticks(np.arange(-dyn_range, 1, tick_step))
-                    self.ax2.plot(theta_h, af_db_h, color='red', linewidth=2)
-                    self.ax2.grid(True, alpha=0.5, linestyle='--')
+                    self.ax2.plot(theta_h, af_db_h, color=self.PLOT_COLOR_HORIZONTAL, linewidth=2)
+                    self.ax2.grid(True, alpha=0.75, linestyle='--')
                     
                     directions_h = {'+X': 0, '+Y': np.pi/2, '-X': np.pi, '-Y': 3*np.pi/2}
                     offset = min(2, dyn_range * 0.2)
@@ -698,9 +715,9 @@ class App(ctk.CTk):
                     
                     self.ax.set_ylim(-dyn_range, 0)
                     self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
-                    color = 'red' if "Horizontal" in view else '#1f77b4'
+                    color = self.PLOT_COLOR_HORIZONTAL if "Horizontal" in view else self.PLOT_COLOR_VERTICAL
                     self.ax.plot(theta, af_db, color=color, linewidth=2)
-                    self.ax.grid(True, alpha=0.5, linestyle='--')
+                    self.ax.grid(True, alpha=0.75, linestyle='--')
                     
                     # Add axis direction labels
                     if "Horizontal" in view:
@@ -733,7 +750,7 @@ class App(ctk.CTk):
                     self.theta_deg_sorted_v = theta_deg_shifted_v[sort_idx_v]
                     self.af_db_sorted_v = af_db_v[sort_idx_v]
                     
-                    self.ax1.plot(self.theta_deg_sorted_v, self.af_db_sorted_v, color='#1f77b4', linewidth=2)
+                    self.ax1.plot(self.theta_deg_sorted_v, self.af_db_sorted_v, color=self.PLOT_COLOR_VERTICAL, linewidth=2)
                     # Label the varying angle explicitly (Theta for elevation)
                     self.ax1.set_xlabel(r'$\theta$ (°)')
                     self.ax1.set_ylabel("Normalized Power (dB)")
@@ -742,7 +759,7 @@ class App(ctk.CTk):
                     self.ax1.set_ylim(-dyn_range, 0)
                     self.ax1.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax1.set_xticks(np.arange(-180, 181, angle_step))
-                    self.ax1.grid(True, alpha=0.5, linestyle='--')
+                    self.ax1.grid(True, alpha=0.75, linestyle='--')
                     self.ax1.set_title(f"Vertical (XZ) - θ (elevation) - HPBWθ={hpbw_elevation:.1f}°", fontsize=10)
                     self.ax1_base_title = f"Vertical (XZ) - θ (elevation) - HPBWθ={hpbw_elevation:.1f}°"
                     
@@ -758,7 +775,7 @@ class App(ctk.CTk):
                     self.theta_deg_sorted_h = theta_deg_shifted_h[sort_idx_h]
                     self.af_db_sorted_h = af_db_h[sort_idx_h]
                     
-                    self.ax2.plot(self.theta_deg_sorted_h, self.af_db_sorted_h, color='red', linewidth=2)
+                    self.ax2.plot(self.theta_deg_sorted_h, self.af_db_sorted_h, color=self.PLOT_COLOR_HORIZONTAL, linewidth=2)
                     # Label the varying angle explicitly (Phi for azimuth)
                     self.ax2.set_xlabel(r'$\phi$ (°)')
                     self.ax2.set_ylabel("Normalized Power (dB)")
@@ -767,7 +784,7 @@ class App(ctk.CTk):
                     self.ax2.set_ylim(-dyn_range, 0)
                     self.ax2.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax2.set_xticks(np.arange(-180, 181, angle_step))
-                    self.ax2.grid(True, alpha=0.5, linestyle='--')
+                    self.ax2.grid(True, alpha=0.75, linestyle='--')
                     self.ax2.set_title(f"Horizontal (XY) - φ (azimuth) - HPBWφ={hpbw_azimuth:.1f}°", fontsize=10)
                     self.ax2_base_title = f"Horizontal (XY) - φ (azimuth) - HPBWφ={hpbw_azimuth:.1f}°"
                     
@@ -787,7 +804,7 @@ class App(ctk.CTk):
                     self.theta_deg_sorted = theta_deg_shifted[sort_idx]
                     self.af_db_sorted = af_db[sort_idx]
                     
-                    color = 'red' if "Horizontal" in view else '#1f77b4'
+                    color = self.PLOT_COLOR_HORIZONTAL if "Horizontal" in view else self.PLOT_COLOR_VERTICAL
                     self.ax.plot(self.theta_deg_sorted, self.af_db_sorted, color=color, linewidth=2)
                     # Label the varying angle explicitly depending on the view
                     self.ax.set_xlabel(r'$\phi$ (°)' if "Horizontal" in view else r'$\theta$ (°)')
@@ -797,7 +814,7 @@ class App(ctk.CTk):
                     self.ax.set_ylim(-dyn_range, 0)
                     self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax.set_xticks(np.arange(-180, 181, angle_step))
-                    self.ax.grid(True, alpha=0.5, linestyle='--')
+                    self.ax.grid(True, alpha=0.75, linestyle='--')
 
             if view == "Both":
                 title_text = f"Pattern (Both Views, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi"
@@ -850,8 +867,8 @@ class App(ctk.CTk):
                         else:
                             db = np.interp(self.fixed_x1, target_theta, target_db_arr)
                         self.fixed_db1 = db
-                        pt = self.ax1.scatter(self.fixed_x1, self.fixed_db1, color='red', s=50, zorder=10)
-                        ln = self.ax1.axvline(self.fixed_x1, color='red', linestyle='--')
+                        pt = self.ax1.scatter(self.fixed_x1, self.fixed_db1, color=self.CURSOR_COLOR_VERTICAL, s=50, zorder=10)
+                        ln = self.ax1.axvline(self.fixed_x1, color=self.CURSOR_COLOR_VERTICAL, linestyle='--')
                         self.cursor_point1 = pt
                         self.cursor_line1 = ln
 
@@ -864,8 +881,8 @@ class App(ctk.CTk):
                         else:
                             db = np.interp(self.fixed_x2, target_theta, target_db_arr)
                         self.fixed_db2 = db
-                        pt = self.ax2.scatter(self.fixed_x2, self.fixed_db2, color='red', s=50, zorder=10)
-                        ln = self.ax2.axvline(self.fixed_x2, color='red', linestyle='--')
+                        pt = self.ax2.scatter(self.fixed_x2, self.fixed_db2, color=self.CURSOR_COLOR_HORIZONTAL, s=50, zorder=10)
+                        ln = self.ax2.axvline(self.fixed_x2, color=self.CURSOR_COLOR_HORIZONTAL, linestyle='--')
                         self.cursor_point2 = pt
                         self.cursor_line2 = ln
             else:
@@ -888,8 +905,9 @@ class App(ctk.CTk):
                         self.fixed_db = db
                         
                         # Create visuals on the target axis
-                        pt = target_ax.scatter(self.fixed_x, self.fixed_db, color='red', s=50, zorder=10)
-                        ln = target_ax.axvline(self.fixed_x, color='red', linestyle='--')
+                        cursor_color = self.CURSOR_COLOR_HORIZONTAL if "Horizontal" in view else self.CURSOR_COLOR_VERTICAL
+                        pt = target_ax.scatter(self.fixed_x, self.fixed_db, color=cursor_color, s=50, zorder=10)
+                        ln = target_ax.axvline(self.fixed_x, color=cursor_color, linestyle='--')
                         
                         self.cursor_point = pt
                         self.cursor_line = ln
