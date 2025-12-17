@@ -602,8 +602,13 @@ class App(ctk.CTk):
                     label_r = -offset
                     for label, theta_rad in directions_v.items():
                         self.ax1.text(theta_rad, label_r, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
-                    self.ax1.set_title("Vertical (XZ)", fontsize=10)
-                    self.ax1_base_title = "Vertical (XZ)"
+                    self.ax1.set_title("Vertical (XZ) - θ (elevation)", fontsize=10)
+                    self.ax1_base_title = "Vertical (XZ) - θ (elevation)"
+                    # Indicate which angle is being varied for this cut
+                    try:
+                        self.ax1.text(0.02, 0.96, "θ (elevation)", transform=self.ax1.transAxes, fontsize=8, va='top', ha='left', color='white')
+                    except Exception:
+                        pass
                     
                     # Horizontal view
                     theta_h, total_linear_h = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Horizontal (XY)", array_axis=array_axis)
@@ -625,8 +630,13 @@ class App(ctk.CTk):
                     label_r = -offset
                     for label, theta_rad in directions_h.items():
                         self.ax2.text(theta_rad, label_r, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
-                    self.ax2.set_title("Horizontal (XY)", fontsize=10)
-                    self.ax2_base_title = "Horizontal (XY)"
+                    self.ax2.set_title("Horizontal (XY) - φ (azimuth)", fontsize=10)
+                    self.ax2_base_title = "Horizontal (XY) - φ (azimuth)"
+                    # Indicate which angle is being varied for this cut
+                    try:
+                        self.ax2.text(0.02, 0.96, "φ (azimuth)", transform=self.ax2.transAxes, fontsize=8, va='top', ha='left', color='white')
+                    except Exception:
+                        pass
                     
                     self.ax = self.ax1  # For cursor, use first one, but disable cursor for Both
                     
@@ -655,6 +665,12 @@ class App(ctk.CTk):
                     label_r = -offset
                     for label, theta_rad in directions.items():
                         self.ax.text(theta_rad, label_r, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
+                    # Indicate which angle is being varied for this cut
+                    try:
+                        var_label = 'φ (azimuth)' if "Horizontal" in view else 'θ (elevation)'
+                        self.ax.text(0.02, 0.96, var_label, transform=self.ax.transAxes, fontsize=8, va='top', ha='left', color='white')
+                    except Exception:
+                        pass
             
             else: # Cartesian
                 if view == "Both":
@@ -672,7 +688,8 @@ class App(ctk.CTk):
                     self.af_db_sorted_v = af_db_v[sort_idx_v]
                     
                     self.ax1.plot(self.theta_deg_sorted_v, self.af_db_sorted_v, color='#1f77b4', linewidth=2)
-                    self.ax1.set_xlabel("Angle (°)")
+                    # Label the varying angle explicitly (Theta for elevation)
+                    self.ax1.set_xlabel(r'$\theta$ (°)')
                     self.ax1.set_ylabel("Normalized Power (dB)")
                     self.ax1.set_xlim(-180, 180)
                     self.ax1.margins(x=0)
@@ -680,8 +697,8 @@ class App(ctk.CTk):
                     self.ax1.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax1.set_xticks(np.arange(-180, 181, angle_step))
                     self.ax1.grid(True, alpha=0.5, linestyle='--')
-                    self.ax1.set_title("Vertical (XZ)", fontsize=10)
-                    self.ax1_base_title = "Vertical (XZ)"
+                    self.ax1.set_title("Vertical (XZ) - θ (elevation)", fontsize=10)
+                    self.ax1_base_title = "Vertical (XZ) - θ (elevation)"
                     
                     self.ax2 = self.fig.add_subplot(122)
                     
@@ -696,7 +713,8 @@ class App(ctk.CTk):
                     self.af_db_sorted_h = af_db_h[sort_idx_h]
                     
                     self.ax2.plot(self.theta_deg_sorted_h, self.af_db_sorted_h, color='red', linewidth=2)
-                    self.ax2.set_xlabel("Angle (°)")
+                    # Label the varying angle explicitly (Phi for azimuth)
+                    self.ax2.set_xlabel(r'$\phi$ (°)')
                     self.ax2.set_ylabel("Normalized Power (dB)")
                     self.ax2.set_xlim(-180, 180)
                     self.ax2.margins(x=0)
@@ -704,8 +722,8 @@ class App(ctk.CTk):
                     self.ax2.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax2.set_xticks(np.arange(-180, 181, angle_step))
                     self.ax2.grid(True, alpha=0.5, linestyle='--')
-                    self.ax2.set_title("Horizontal (XY)", fontsize=10)
-                    self.ax2_base_title = "Horizontal (XY)"
+                    self.ax2.set_title("Horizontal (XY) - φ (azimuth)", fontsize=10)
+                    self.ax2_base_title = "Horizontal (XY) - φ (azimuth)"
                     
                     self.ax = self.ax1  # For compatibility
                     
@@ -725,7 +743,8 @@ class App(ctk.CTk):
                     
                     color = 'red' if "Horizontal" in view else '#1f77b4'
                     self.ax.plot(self.theta_deg_sorted, self.af_db_sorted, color=color, linewidth=2)
-                    self.ax.set_xlabel("Angle (°)")
+                    # Label the varying angle explicitly depending on the view
+                    self.ax.set_xlabel(r'$\phi$ (°)' if "Horizontal" in view else r'$\theta$ (°)')
                     self.ax.set_ylabel("Normalized Power (dB)")
                     self.ax.set_xlim(-180, 180)
                     self.ax.margins(x=0)
@@ -741,6 +760,12 @@ class App(ctk.CTk):
                 title_text = f"Pattern ({view}, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, HPBW={hpbw:.1f}°"
                 self.ax.set_title(title_text, va='bottom', fontsize=10)
                 self.ax_base_title = title_text
+                
+                # Add angle label to title
+                angle_label = 'φ (azimuth)' if "Horizontal" in view else 'θ (elevation)'
+                new_title = f"{title_text} - {angle_label}"
+                self.ax.set_title(new_title, va='bottom', fontsize=10)
+                self.ax_base_title = new_title
             
             # --- DRAW 3D ORIENTATION INSET ---
             if self.chk_3d.get():
