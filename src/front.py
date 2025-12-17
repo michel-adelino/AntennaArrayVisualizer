@@ -478,7 +478,7 @@ class App(ctk.CTk):
                 self.ax.set_title(f"{base}\n{self.cursor_text}", va='bottom', fontsize=10)
 
     # --- 3D INSET LOGIC ---
-    def draw_3d_inset(self, is_horizontal, array_axis, theta=None, af_db=None, dyn_range=40, inset_pos=[0.0, 0.0, 0.25, 0.25], theta_h=None, af_db_h=None):
+    def draw_3d_inset(self, is_horizontal, array_axis, theta=None, af_db=None, dyn_range=40, inset_pos=[0.0, 0.0, 0.25, 0.25], theta_h=None, af_db_h=None, el_type=""):
         """Draws a mini 3D plot to show array orientation and cut plane with pattern."""
         # Add inset axes at specified position
         ax_geo = self.fig.add_axes(inset_pos, projection='3d')
@@ -529,9 +529,17 @@ class App(ctk.CTk):
                 ax_geo.plot(x_p, y_p, z_p, color=self.PLOT_COLOR_HORIZONTAL, linewidth=1, alpha=0.8)
             else:
                 # Vertical (XZ) cut
-                x_p = r * np.sin(theta)
-                y_p = np.zeros_like(theta)
-                z_p = r * np.cos(theta)
+                if "Monopole" in el_type:
+                    # For monopole, only plot where theta < 90° or theta > 270°
+                    mask = (theta < np.pi/2) | (theta > 3*np.pi/2)
+                    theta_plot = theta[mask]
+                    r_plot = r[mask]
+                else:
+                    theta_plot = theta
+                    r_plot = r
+                x_p = r_plot * np.sin(theta_plot)
+                y_p = np.zeros_like(theta_plot)
+                z_p = r_plot * np.cos(theta_plot)
                 ax_geo.plot(x_p, y_p, z_p, color=self.PLOT_COLOR_VERTICAL, linewidth=1, alpha=0.8)
         
         # If horizontal data provided (for Both views), plot it too
@@ -843,13 +851,13 @@ class App(ctk.CTk):
                     theta_inset_h = theta_h
                     af_db_inset_h = af_db_h
                     inset_pos = [0.375, 0.0, 0.25, 0.25]  # Center bottom
-                    self.draw_3d_inset(is_horiz, axis_letter, theta_inset_v, af_db_inset_v, dyn_range, inset_pos, theta_inset_h, af_db_inset_h)
+                    self.draw_3d_inset(is_horiz, axis_letter, theta_inset_v, af_db_inset_v, dyn_range, inset_pos, theta_inset_h, af_db_inset_h, el_type)
                 else:
                     is_horiz = "Horizontal" in view
                     theta_inset = theta
                     af_db_inset = af_db
                     inset_pos = [0.0, 0.0, 0.25, 0.25]  # Bottom left
-                    self.draw_3d_inset(is_horiz, axis_letter, theta_inset, af_db_inset, dyn_range, inset_pos)
+                    self.draw_3d_inset(is_horiz, axis_letter, theta_inset, af_db_inset, dyn_range, inset_pos, el_type=el_type)
             
             # Apply tight_layout only if no 3D inset (to avoid warning with incompatible axes)
             if not self.chk_3d.get():
