@@ -45,6 +45,8 @@ class App(ctk.CTk):
         # Color constants for plots
         self.PLOT_COLOR_VERTICAL = '#1f77b4'  # Blue for vertical
         self.PLOT_COLOR_HORIZONTAL = '#d62728'  # Red for horizontal
+        # HPBW marker color (dark gray)
+        self.HPBW_COLOR = '#4a4a4a'
 
         self.title("Antenna Array Visualizer - ITBA 22.21 - v0.2")
         self.geometry("1100x750")
@@ -157,6 +159,11 @@ class App(ctk.CTk):
         self.chk_3d.grid(row=r, column=0, columnspan=2, pady=(5, 5))
         r += 1
 
+        self.chk_hpbw = ctk.CTkCheckBox(self.frame_controls, text="Show HPBW Markers", command=self.update_plot)
+        self.chk_hpbw.select()  # Default to checked
+        self.chk_hpbw.grid(row=r, column=0, columnspan=2, pady=(5, 5))
+        r += 1
+
         # Separator
         ctk.CTkFrame(self.frame_controls, height=2, fg_color="gray30").grid(row=r, column=0, columnspan=2, sticky="ew", padx=10, pady=10)
         r += 1
@@ -235,6 +242,66 @@ class App(ctk.CTk):
         if angle_deg > 180:
             angle_deg -= 360
         return angle_deg
+
+    def _shortest_angle_arc(self, a1, a2, n=100):
+        """Return n points (radians) from a1 to a2 following the shortest angular path.
+
+        Handles wrap-around at 0/2*pi so that arcs like 350° -> 10° produce a short 20° arc
+        instead of the long 340° path.
+        """
+        twopi = 2 * np.pi
+        # Normalize to [0, 2pi)
+        a1n = a1 % twopi
+        a2n = a2 % twopi
+        diff = (a2n - a1n) % twopi
+        # If shortest path goes forward
+        if diff <= np.pi:
+            end = a1n + diff
+        else:
+            # Shorter path goes backward (negative direction)
+            end = a1n - (twopi - diff)
+        return np.linspace(a1n, end, n)
+
+    def _draw_hpbw_markers(self, ax, theta_arr, af_db_arr, hpbw_deg, is_polar=False):
+        """Draw HPBW markers (vertical boundaries + -3 dB arc/segment).
+
+        theta_arr : sequence of angles (radians for polar, degrees for cartesian)
+        af_db_arr : corresponding array (dB)
+        hpbw_deg : numeric HPBW in degrees (360 means omni)
+        is_polar : True when theta_arr is in radians and ax is polar
+        """
+        if hpbw_deg >= 360 or not self.chk_hpbw.get():
+            return
+
+        half_db = -3
+        idx_max = np.argmax(af_db_arr)
+        n_points = len(af_db_arr)
+
+        # center peak and search left/right to avoid edge effects
+        center_idx = n_points // 2
+        shift = center_idx - idx_max
+        af_db_shifted = np.roll(af_db_arr, shift)
+
+        l = center_idx
+        while l > 0 and af_db_shifted[l] > half_db:
+            l -= 1
+        r = center_idx
+        while r < n_points - 1 and af_db_shifted[r] > half_db:
+            r += 1
+
+        l_orig = (l - shift) % n_points
+        r_orig = (r - shift) % n_points
+
+        # Draw boundaries
+        ax.axvline(theta_arr[l_orig], color=self.HPBW_COLOR, linestyle='--', linewidth=1, alpha=0.9)
+        ax.axvline(theta_arr[r_orig], color=self.HPBW_COLOR, linestyle='--', linewidth=1, alpha=0.9)
+
+        # Draw -3 dB connector: arc for polar, straight segment for cartesian
+        if is_polar:
+            theta_arc = self._shortest_angle_arc(theta_arr[l_orig], theta_arr[r_orig], 100)
+            ax.plot(theta_arc, np.full_like(theta_arc, half_db), color=self.HPBW_COLOR, linestyle='--', linewidth=1, alpha=0.9)
+        else:
+            ax.plot([theta_arr[l_orig], theta_arr[r_orig]], [half_db, half_db], color=self.HPBW_COLOR, linestyle='--', linewidth=1, alpha=0.9)
 
     # --- CURSOR LOGIC ---
     def get_cursor_data(self, event):
@@ -668,6 +735,9 @@ class App(ctk.CTk):
                     self.ax1.plot(theta_v, af_db_v, color=self.PLOT_COLOR_VERTICAL, linewidth=2)
                     self.ax1.grid(True, alpha=0.75, linestyle='--')
                     
+                    # HPBW markers
+                    self._draw_hpbw_markers(self.ax1, theta_v, af_db_v, hpbw_elevation, is_polar=True)
+                    
                     directions_v = {'+Z': 0, '+X': np.pi/2, '-Z': np.pi, '-X': 3*np.pi/2}
                     # Place direction labels slightly below the top (0 dB) so they remain
                     # visible for small dynamic ranges. Offset is min(2 dB, 20% of dyn_range).
@@ -692,6 +762,9 @@ class App(ctk.CTk):
                     self.ax2.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax2.plot(theta_h, af_db_h, color=self.PLOT_COLOR_HORIZONTAL, linewidth=2)
                     self.ax2.grid(True, alpha=0.75, linestyle='--')
+                    
+                    # HPBW markers
+                    self._draw_hpbw_markers(self.ax2, theta_h, af_db_h, hpbw_azimuth, is_polar=True)
                     
                     directions_h = {'+X': 0, '+Y': np.pi/2, '-X': np.pi, '-Y': 3*np.pi/2}
                     offset = min(2, dyn_range * 0.2)
@@ -718,6 +791,30 @@ class App(ctk.CTk):
                     color = self.PLOT_COLOR_VERTICAL if "Elevation" in view else self.PLOT_COLOR_HORIZONTAL
                     self.ax.plot(theta, af_db, color=color, linewidth=2)
                     self.ax.grid(True, alpha=0.75, linestyle='--')
+                    
+                    # Add HPBW markers if not omnidirectional and enabled
+                    hpbw_current = hpbw_elevation if "Elevation" in view else hpbw_azimuth
+                    if hpbw_current < 360 and self.chk_hpbw.get():
+                        half_db = -3
+                        idx_max = np.argmax(af_db)
+                        n_points = len(af_db)
+                        center_idx = n_points // 2
+                        shift = center_idx - idx_max
+                        af_db_shifted = np.roll(af_db, shift)
+                        l = center_idx
+                        while l > 0 and af_db_shifted[l] > half_db:
+                            l -= 1
+                        r = center_idx
+                        while r < n_points - 1 and af_db_shifted[r] > half_db:
+                            r += 1
+                        l_orig = (l - shift) % n_points
+                        r_orig = (r - shift) % n_points
+                        self.ax.axvline(theta[l_orig], color=self.HPBW_COLOR, linestyle='--', linewidth=1, alpha=0.9)
+                        self.ax.axvline(theta[r_orig], color=self.HPBW_COLOR, linestyle='--', linewidth=1, alpha=0.9)
+                        # Arc at -3 dB
+                        theta_arc = self._shortest_angle_arc(theta[l_orig], theta[r_orig], 100)
+                        r_arc = np.full_like(theta_arc, -3)
+                        self.ax.plot(theta_arc, r_arc, color=self.HPBW_COLOR, linestyle='--', linewidth=1, alpha=0.9)
                     
                     # Add axis direction labels
                     if "Azimuth" in view:
@@ -754,6 +851,9 @@ class App(ctk.CTk):
                     self.ax1.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax1.set_xticks(np.arange(-180, 181, angle_step))
                     self.ax1.grid(True, alpha=0.75, linestyle='--')
+                    
+                    # HPBW markers (cartesian)
+                    self._draw_hpbw_markers(self.ax1, self.theta_deg_sorted_v, self.af_db_sorted_v, hpbw_elevation, is_polar=False)
                     self.ax1.set_title(f"Elevation θ (XZ) --- HPBW={hpbw_elevation:.1f}°", fontsize=10)
                     self.ax1_base_title = f"Elevation θ (XZ) --- HPBW={hpbw_elevation:.1f}°"
                     
@@ -779,6 +879,9 @@ class App(ctk.CTk):
                     self.ax2.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax2.set_xticks(np.arange(-180, 181, angle_step))
                     self.ax2.grid(True, alpha=0.75, linestyle='--')
+                    
+                    # HPBW markers (cartesian)
+                    self._draw_hpbw_markers(self.ax2, self.theta_deg_sorted_h, self.af_db_sorted_h, hpbw_azimuth, is_polar=False)
                     self.ax2.set_title(f"Azimuth φ (XY) --- HPBW={hpbw_azimuth:.1f}°", fontsize=10)
                     self.ax2_base_title = f"Azimuth φ (XY) --- HPBW={hpbw_azimuth:.1f}°"
                     
@@ -809,6 +912,28 @@ class App(ctk.CTk):
                     self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax.set_xticks(np.arange(-180, 181, angle_step))
                     self.ax.grid(True, alpha=0.75, linestyle='--')
+                    
+                    # Add HPBW markers if not omnidirectional and enabled
+                    hpbw_current = hpbw_elevation if "Elevation" in view else hpbw_azimuth
+                    if hpbw_current < 360 and self.chk_hpbw.get():
+                        half_db = -3
+                        idx_max = np.argmax(self.af_db_sorted)
+                        n_points = len(self.af_db_sorted)
+                        center_idx = n_points // 2
+                        shift = center_idx - idx_max
+                        af_db_shifted = np.roll(self.af_db_sorted, shift)
+                        l = center_idx
+                        while l > 0 and af_db_shifted[l] > half_db:
+                            l -= 1
+                        r = center_idx
+                        while r < n_points - 1 and af_db_shifted[r] > half_db:
+                            r += 1
+                        l_orig = (l - shift) % n_points
+                        r_orig = (r - shift) % n_points
+                        self.ax.axvline(self.theta_deg_sorted[l_orig], color='red', linestyle='--', linewidth=1, alpha=0.7)
+                        self.ax.axvline(self.theta_deg_sorted[r_orig], color='red', linestyle='--', linewidth=1, alpha=0.7)
+                        # Line at -3 dB between boundaries
+                        self.ax.plot([self.theta_deg_sorted[l_orig], self.theta_deg_sorted[r_orig]], [-3, -3], color='red', linestyle='--', linewidth=1, alpha=0.7)
 
             if view == "Both":
                 suptitle_text = f"{config_str}\nDmax={d_dbi:.2f} dBi"

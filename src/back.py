@@ -140,26 +140,23 @@ class AntennaCalculator:
         beta = np.deg2rad(beta_deg)
         indices = np.arange(N) - (N - 1) / 2
         
+        # --- FIX 1: Siempre escanear 0 a 2pi (360°) para evitar cortes en los polos ---
+        n_points = 2000
+        var_angle = np.linspace(0, 2 * np.pi, n_points) 
+        
         if cut == "elevation":
-            # Elevation Cut: vary theta from 0 to pi, phi=0
-            var_angle = np.linspace(0, np.pi, 2000)
             if "X" in array_axis:
-                # Array on X: psi = k * d_lambda * sin(theta) + beta
                 psi = k * d_lambda * np.sin(var_angle) + beta
             else:
-                # Array on Z: psi = k * d_lambda * cos(theta) + beta
                 psi = k * d_lambda * np.cos(var_angle) + beta
             EF = self._get_element_factor(var_angle, element_type)
+            
         elif cut == "azimuth":
-            # Azimuth Cut: vary phi from 0 to 2pi, theta=pi/2
-            var_angle = np.linspace(0, 2 * np.pi, 2000)
             if "X" in array_axis:
-                # Array on X: psi = k * d_lambda * sin(theta) * cos(phi) + beta = k * d_lambda * cos(phi) + beta
                 psi = k * d_lambda * np.cos(var_angle) + beta
             else:
-                # Array on Z: psi = k * d_lambda * cos(theta) + beta = constant (omnidirectional)
                 psi = beta
-            EF = np.ones_like(var_angle)  # At theta=90°, vertical dipole is omnidirectional in azimuth
+            EF = np.ones_like(var_angle)
         else:
             raise ValueError("Invalid cut type")
         
@@ -169,29 +166,41 @@ class AntennaCalculator:
             
         power = (np.abs(AF) * EF)**2
         max_p = np.max(power)
-        if max_p == 0: return 0.0  # No radiation
+        if max_p == 0: return 0.0
+        
+        # --- FIX 2: Manejo de "Wrap-around" (Rotar el array para centrar el pico) ---
+        # Esto soluciona problemas cuando el haz está en 0°, 180° o 360°
+        
+        idx_max = np.argmax(power)
+        center_idx = n_points // 2
+        shift = center_idx - idx_max
+        
+        # Rotamos el array de potencia para que el máximo quede en el centro
+        power_shifted = np.roll(power, shift)
         
         half = 0.5 * max_p
-        idx_max = np.argmax(power)
         
-        # Find left boundary
-        l = idx_max
-        while l > 0 and power[l] > half:
+        # Buscar hacia la izquierda desde el centro
+        l = center_idx
+        while l > 0 and power_shifted[l] > half:
             l -= 1
         
-        # Find right boundary
-        r = idx_max
-        while r < len(power) - 1 and power[r] > half:
+        # Buscar hacia la derecha desde el centro
+        r = center_idx
+        while r < n_points - 1 and power_shifted[r] > half:
             r += 1
+            
+        # Calcular ancho en índices y convertir a grados
+        # Nota: Usamos 360 (no 2pi) porque el resultado final se espera en grados
+        # El rango es 0 a 360, por lo que la resolución es 360 / (n_points - 1)
+        angle_res = 360.0 / (n_points - 1)
+        width_indices = r - l
+        hpbw_deg = width_indices * angle_res
         
-        beamwidth_rad = var_angle[r] - var_angle[l]
-        beamwidth_deg = np.rad2deg(beamwidth_rad)
-        
-        # If the pattern is uniform (omnidirectional), set to 360°
-        if beamwidth_deg >= 359:  # Close to 360
+        if hpbw_deg >= 359: 
             return 360.0
         
-        return beamwidth_deg
+        return hpbw_deg
 
     def _get_element_factor(self, theta, el_type):
         """Return element factor vs theta for given element type.
