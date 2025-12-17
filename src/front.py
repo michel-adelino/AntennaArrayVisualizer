@@ -815,10 +815,8 @@ class App(ctk.CTk):
                 self.fig.suptitle(suptitle_text, fontsize=10)
             else:
                 if "Azimuth" in view:
-                    plane_name = "Azimuth φ (XY)"
                     hpbw = hpbw_azimuth
                 else:
-                    plane_name = "Elevation θ (XZ)"
                     hpbw = hpbw_elevation
                 params_line = f"{config_str} | View={view}"
                 results_line = f"HPBW={hpbw:.1f}° --- Dmax={d_dbi:.2f} dBi"
