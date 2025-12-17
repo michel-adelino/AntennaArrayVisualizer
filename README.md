@@ -7,13 +7,13 @@ A simple desktop application to calculate and visualize the radiation pattern of
 ## Features
 
 *   Calculate and visualize radiation patterns for linear antenna arrays using the Multiplication Theorem.
-*   Support for multiple element types: Isotropic, Dipole (λ/2), and Monopole (λ/4).
+*   Support for multiple element types: Isotropic, Dipole (λ/2, Vertical Z), and Monopole (λ/4, Vertical Z).
 *   Adjustable parameters:
     *   Number of antennas (N).
     *   Separation between antennas (d/λ).
     *   Progressive phase shift (β in degrees) for beam steering.
     *   Current intensities for each element (supports uniform or custom distributions).
-*   Multiple views: Vertical (Elevation/Theta), Horizontal (Azimuth/Phi), and Both (dual view visualization).
+*   Multiple views: Elevation θ (XZ), Azimuth φ (XY), and Both (dual view visualization).
 *   Plot types: Polar (directional) and Cartesian (rectangular) coordinate systems.
 *   Customizable plot settings:
     *   Dynamic range (dB floor).

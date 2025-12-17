@@ -38,7 +38,15 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Antenna Array Visualizer - ITBA 22.21")
+        # Color constants for cursors
+        self.CURSOR_COLOR_VERTICAL = '#1f77b4'  # Blue for vertical (elevation)
+        self.CURSOR_COLOR_HORIZONTAL = '#d62728'  # Red for horizontal (azimuth)
+        
+        # Color constants for plots
+        self.PLOT_COLOR_VERTICAL = '#1f77b4'  # Blue for vertical
+        self.PLOT_COLOR_HORIZONTAL = '#d62728'  # Red for horizontal
+
+        self.title("Antenna Array Visualizer - ITBA 22.21 - v0.2")
         self.geometry("1100x750")
         ctk.set_appearance_mode("Dark")
         ctk.set_default_color_theme("blue")
@@ -74,6 +82,13 @@ class App(ctk.CTk):
         self.cursor_line2 = None
         self.cursor_text1 = ""
         self.cursor_text2 = ""
+        # Independent cursors for both views
+        self.fixed_cursor1 = False
+        self.fixed_x1 = None
+        self.fixed_db1 = None
+        self.fixed_cursor2 = False
+        self.fixed_x2 = None
+        self.fixed_db2 = None
 
         # --- LAYOUT ---
         self.grid_columnconfigure(1, weight=1)
@@ -108,7 +123,7 @@ class App(ctk.CTk):
         self.lbl_type = ctk.CTkLabel(self.frame_controls, text="Type:", cursor="hand2")
         self.lbl_type.grid(row=r, column=0, sticky="e", padx=5, pady=5)
         CTkTooltip(self.lbl_type, "Radiation pattern of the individual element.\n(Multiplied by Array Factor).")
-        self.combo_type = ctk.CTkComboBox(self.frame_controls, values=["Isotropic", "Dipole (λ/2)", "Monopole (λ/4)"], command=lambda v: self.update_plot())
+        self.combo_type = ctk.CTkComboBox(self.frame_controls, values=["Isotropic", "Dipole (λ/2, Vertical Z)", "Monopole (λ/4, Vertical Z)"], command=lambda v: self.update_plot())
         self.combo_type.set("Isotropic")
         self.combo_type.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
         r += 1
@@ -123,9 +138,9 @@ class App(ctk.CTk):
 
         self.lbl_view = ctk.CTkLabel(self.frame_controls, text="View:", cursor="hand2")
         self.lbl_view.grid(row=r, column=0, sticky="e", padx=5, pady=5)
-        CTkTooltip(self.lbl_view, "Cut Plane:\nVertical (Elevation/Theta)\nHorizontal (Azimuth/Phi)\nBoth: Show both views")
-        self.combo_view = ctk.CTkComboBox(self.frame_controls, values=["Vertical (XZ)", "Horizontal (XY)", "Both"], command=lambda v: self.update_plot())
-        self.combo_view.set("Vertical (XZ)")
+        CTkTooltip(self.lbl_view, "Cut Plane:\nElevation θ (XZ)\nAzimuth φ (XY)\nBoth: Show both views")
+        self.combo_view = ctk.CTkComboBox(self.frame_controls, values=["Elevation θ (XZ)", "Azimuth φ (XY)", "Both"], command=lambda v: self.update_plot())
+        self.combo_view.set("Elevation θ (XZ)")
         self.combo_view.grid(row=r, column=1, sticky="ew", padx=5, pady=5)
         r += 1
 
@@ -291,6 +306,15 @@ class App(ctk.CTk):
             cursor_line = self.cursor_line
             cursor_text_attr = 'cursor_text'
         
+        # Determine color based on view
+        view = self.combo_view.get()
+        if view == "Both":
+            # ax1 is vertical (blue), ax2 is horizontal (red)
+            cursor_color = self.CURSOR_COLOR_HORIZONTAL if ax == getattr(self, 'ax2', None) else self.CURSOR_COLOR_VERTICAL
+        else:
+            # Single view: azimuth red, elevation blue
+            cursor_color = self.CURSOR_COLOR_HORIZONTAL if "Azimuth" in view else self.CURSOR_COLOR_VERTICAL
+        
         # Calculate Directivity at this angle: D_max(dBi) + NormalizedPattern(dB)
         d_max_dbi = 10 * np.log10(self.D_linear) if self.D_linear > 0 else 0
         local_dir = d_max_dbi + db
@@ -308,7 +332,7 @@ class App(ctk.CTk):
                 cursor_point.set_offsets([x_val, db])
                 cursor_point.set_visible(True)
             else:
-                cursor_point = ax.scatter(x_val, db, color='red', s=50, zorder=10)
+                cursor_point = ax.scatter(x_val, db, color=cursor_color, s=50, zorder=10)
                 if ax == getattr(self, 'ax1', None):
                     self.cursor_point1 = cursor_point
                 elif ax == getattr(self, 'ax2', None):
@@ -320,7 +344,7 @@ class App(ctk.CTk):
                 cursor_line.set_xdata([x_val, x_val])
                 cursor_line.set_visible(True)
             else:
-                cursor_line = ax.axvline(x_val, color='red', linestyle='--')
+                cursor_line = ax.axvline(x_val, color=cursor_color, linestyle='--')
                 if ax == getattr(self, 'ax1', None):
                     self.cursor_line1 = cursor_line
                 elif ax == getattr(self, 'ax2', None):
@@ -340,13 +364,17 @@ class App(ctk.CTk):
         if self.cursor_line2: self.cursor_line2.set_visible(False)
 
     def on_mouse_move(self, event):
-        if self.fixed_cursor:
-            return
         view_is_both = self.combo_view.get() == "Both"
         if view_is_both:
-            if event.inaxes not in [getattr(self, 'ax1', None), getattr(self, 'ax2', None)]:
-                return
+            if event.inaxes == getattr(self, 'ax1', None) and not self.fixed_cursor1:
+                pass  # Allow showing cursor
+            elif event.inaxes == getattr(self, 'ax2', None) and not self.fixed_cursor2:
+                pass  # Allow showing cursor
+            else:
+                return  # Don't show if fixed or not in axes
         else:
+            if self.fixed_cursor:
+                return
             if event.inaxes != self.ax or self.theta_plot is None:
                 return
         data = self.get_cursor_data(event)
@@ -359,55 +387,89 @@ class App(ctk.CTk):
         # Ensure the click happened on a valid axes depending on the current view
         view_is_both = self.combo_view.get() == "Both"
         if view_is_both:
-            if event.inaxes not in [getattr(self, 'ax1', None), getattr(self, 'ax2', None)]:
-                return
-        else:
-            if event.inaxes != getattr(self, 'ax', None):
-                return
-        
-        if self.fixed_cursor:
-            # Unfreeze
-            self.fixed_cursor = False
-            self.fixed_subplot_idx = None
-            self.cursor_text = ""
-            self.cursor_text1 = ""
-            self.cursor_text2 = ""
+            if event.inaxes == getattr(self, 'ax1', None):
+                # Toggle cursor for ax1
+                if self.fixed_cursor1:
+                    self.fixed_cursor1 = False
+                    self.cursor_text1 = ""
+                    if self.cursor_point1: self.cursor_point1.set_visible(False)
+                    if self.cursor_line1: self.cursor_line1.set_visible(False)
+                else:
+                    data = self.get_cursor_data(event)
+                    if data:
+                        self.fixed_cursor1 = True
+                        self.fixed_x1, self.fixed_db1 = data[2], data[1]
+                        angle_deg = np.rad2deg(self.fixed_x1) if self.seg_plot_type.get() == "Polar" else self.fixed_x1
+                        if self.seg_plot_type.get() == "Polar":
+                            angle_deg = self._normalize_angle_deg(angle_deg)
+                        dir_dbi = 10 * np.log10(self.D_linear) + self.fixed_db1 if self.D_linear > 0 else 0
+                        self.cursor_text1 = f"Cursor: ({angle_deg:.1f}°, {self.fixed_db1:.1f}dB), D(°)={dir_dbi:.1f}dBi"
+                        self.update_cursor_visuals(data[0], data[1], data[2], is_fixed=True, ax=event.inaxes)
+            elif event.inaxes == getattr(self, 'ax2', None):
+                # Toggle cursor for ax2
+                if self.fixed_cursor2:
+                    self.fixed_cursor2 = False
+                    self.cursor_text2 = ""
+                    if self.cursor_point2: self.cursor_point2.set_visible(False)
+                    if self.cursor_line2: self.cursor_line2.set_visible(False)
+                else:
+                    data = self.get_cursor_data(event)
+                    if data:
+                        self.fixed_cursor2 = True
+                        self.fixed_x2, self.fixed_db2 = data[2], data[1]
+                        angle_deg = np.rad2deg(self.fixed_x2) if self.seg_plot_type.get() == "Polar" else self.fixed_x2
+                        if self.seg_plot_type.get() == "Polar":
+                            angle_deg = self._normalize_angle_deg(angle_deg)
+                        dir_dbi = 10 * np.log10(self.D_linear) + self.fixed_db2 if self.D_linear > 0 else 0
+                        self.cursor_text2 = f"Cursor: ({angle_deg:.1f}°, {self.fixed_db2:.1f}dB), D(°)={dir_dbi:.1f}dBi"
+                        self.update_cursor_visuals(data[0], data[1], data[2], is_fixed=True, ax=event.inaxes)
             self.update_title()
-            # Hide all cursors
-            self._hide_all_cursors()
             self.canvas.draw()
         else:
-            # Freeze
-            data = self.get_cursor_data(event)
-            if data:
-                self.fixed_cursor = True
-                self.fixed_x, self.fixed_db = data[2], data[1]
-                
-                # Determine axis index
-                if self.combo_view.get() == "Both":
-                    if event.inaxes == getattr(self, 'ax1', None):
-                        self.fixed_subplot_idx = 0
-                    elif event.inaxes == getattr(self, 'ax2', None):
-                        self.fixed_subplot_idx = 1
-                else:
-                    self.fixed_subplot_idx = 0
-                
-                self.update_cursor_visuals(data[0], data[1], data[2], is_fixed=True, ax=event.inaxes)
+            # Existing logic for single view
+            if event.inaxes != getattr(self, 'ax', None):
+                return
+            
+            if self.fixed_cursor:
+                # Unfreeze
+                self.fixed_cursor = False
+                self.fixed_subplot_idx = None
+                self.cursor_text = ""
+                self.update_title()
+                # Hide all cursors
+                self._hide_all_cursors()
                 self.canvas.draw()
+            else:
+                # Freeze
+                data = self.get_cursor_data(event)
+                if data:
+                    self.fixed_cursor = True
+                    self.fixed_x, self.fixed_db = data[2], data[1]
+                    
+                    # Determine axis index
+                    if self.combo_view.get() == "Both":
+                        if event.inaxes == getattr(self, 'ax1', None):
+                            self.fixed_subplot_idx = 0
+                        elif event.inaxes == getattr(self, 'ax2', None):
+                            self.fixed_subplot_idx = 1
+                    else:
+                        self.fixed_subplot_idx = 0
+                    
+                    self.update_cursor_visuals(data[0], data[1], data[2], is_fixed=True, ax=event.inaxes)
+                    self.update_title()
+                    self.canvas.draw()
 
     def update_title(self):
         view = self.combo_view.get()
         if view == "Both":
             if hasattr(self, 'ax1') and self.ax1 and hasattr(self, 'ax1_base_title'):
                 t1 = self.ax1_base_title
-                if self.cursor_text1:
-                    t1 += f"\n{self.cursor_text1}"
+                t1 += f"\n{self.cursor_text1}"
                 self.ax1.set_title(t1, fontsize=10)
             
             if hasattr(self, 'ax2') and self.ax2 and hasattr(self, 'ax2_base_title'):
                 t2 = self.ax2_base_title
-                if self.cursor_text2:
-                    t2 += f"\n{self.cursor_text2}"
+                t2 += f"\n{self.cursor_text2}"
                 self.ax2.set_title(t2, fontsize=10)
         else:
             if hasattr(self, 'ax') and self.ax and hasattr(self, 'ax_base_title'):
@@ -415,7 +477,7 @@ class App(ctk.CTk):
                 self.ax.set_title(f"{base}\n{self.cursor_text}", va='bottom', fontsize=10)
 
     # --- 3D INSET LOGIC ---
-    def draw_3d_inset(self, is_horizontal, array_axis, theta=None, af_db=None, dyn_range=40, inset_pos=[0.0, 0.0, 0.25, 0.25], theta_h=None, af_db_h=None):
+    def draw_3d_inset(self, is_horizontal, array_axis, theta=None, af_db=None, dyn_range=40, inset_pos=[0.0, 0.0, 0.25, 0.25], theta_h=None, af_db_h=None, el_type=""):
         """Draws a mini 3D plot to show array orientation and cut plane with pattern."""
         # Add inset axes at specified position
         ax_geo = self.fig.add_axes(inset_pos, projection='3d')
@@ -463,13 +525,21 @@ class App(ctk.CTk):
                 x_p = r * np.cos(theta)
                 y_p = r * np.sin(theta)
                 z_p = np.zeros_like(theta)
-                ax_geo.plot(x_p, y_p, z_p, color='blue', linewidth=1)
+                ax_geo.plot(x_p, y_p, z_p, color=self.PLOT_COLOR_HORIZONTAL, linewidth=1, alpha=0.8)
             else:
                 # Vertical (XZ) cut
-                x_p = r * np.sin(theta)
-                y_p = np.zeros_like(theta)
-                z_p = r * np.cos(theta)
-                ax_geo.plot(x_p, y_p, z_p, color='blue', linewidth=1, alpha=0.8)
+                if "Monopole" in el_type:
+                    # For monopole, only plot where theta < 90° or theta > 270°
+                    mask = (theta < np.pi/2) | (theta > 3*np.pi/2)
+                    theta_plot = theta[mask]
+                    r_plot = r[mask]
+                else:
+                    theta_plot = theta
+                    r_plot = r
+                x_p = r_plot * np.sin(theta_plot)
+                y_p = np.zeros_like(theta_plot)
+                z_p = r_plot * np.cos(theta_plot)
+                ax_geo.plot(x_p, y_p, z_p, color=self.PLOT_COLOR_VERTICAL, linewidth=1, alpha=0.8)
         
         # If horizontal data provided (for Both views), plot it too
         if theta_h is not None and af_db_h is not None:
@@ -487,7 +557,7 @@ class App(ctk.CTk):
             x_c = np.cos(t)
             y_c = np.sin(t)
             z_c = np.zeros_like(t)
-            ax_geo.plot(x_c, y_c, z_c, color='red', linestyle='--', linewidth=1, alpha=0.5)
+            ax_geo.plot(x_c, y_c, z_c, color=self.PLOT_COLOR_HORIZONTAL, linestyle='--', linewidth=1, alpha=0.5)
         
         # Draw outline of the plane
         t = np.linspace(0, 2*np.pi, 60)
@@ -495,12 +565,12 @@ class App(ctk.CTk):
             x_c = np.cos(t)
             y_c = np.sin(t)
             z_c = np.zeros_like(t)
-            ax_geo.plot(x_c, y_c, z_c, color='blue', linestyle='--', linewidth=1, alpha=0.5)
+            ax_geo.plot(x_c, y_c, z_c, color=self.PLOT_COLOR_HORIZONTAL, linestyle='--', linewidth=1, alpha=0.5)
         else:
             x_c = np.sin(t)
             y_c = np.zeros_like(t)
             z_c = np.cos(t)
-            ax_geo.plot(x_c, y_c, z_c, color='blue', linestyle='--', linewidth=1, alpha=0.5)
+            ax_geo.plot(x_c, y_c, z_c, color=self.PLOT_COLOR_VERTICAL, linestyle='--', linewidth=1, alpha=0.5)
 
         # Set limits to ensure aspect ratio
         limit = 1.2
@@ -544,8 +614,11 @@ class App(ctk.CTk):
 
             # --- CALCULATE METRICS (PHYSICS) ---
             # Calculate D and HPBW using the rigorous 3D model (Vertical cut integration)
-            d_lin, hpbw = self.calculator.calculate_metrics(N, d, beta, el_type, currents, array_axis=array_axis)
+            d_lin, hpbw_elevation, hpbw_azimuth = self.calculator.calculate_metrics(N, d, beta, el_type, currents, array_axis=array_axis)
             d_dbi = 10 * np.log10(d_lin) if d_lin > 0 else 0
+            
+            # Create compact config string
+            config_str = f"N={N} | d={d}λ | β={beta}° | In={','.join(map(str,curr_list))} | Type={el_type} | Array Axis={array_axis}"
             
             self.D_linear = d_lin # Store for cursor usage
 
@@ -578,7 +651,7 @@ class App(ctk.CTk):
                     self.ax2 = self.fig.add_subplot(122, projection='polar')
                     
                     # Vertical view
-                    theta_v, total_linear_v = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Vertical (XZ)", array_axis=array_axis)
+                    theta_v, total_linear_v = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Elevation θ (XZ)", array_axis=array_axis)
                     af_db_v = self.calculator.convert_to_db(total_linear_v, dynamic_range=dyn_range)
                     
                     self.theta_v = theta_v
@@ -592,21 +665,21 @@ class App(ctk.CTk):
                     self.ax1.set_thetagrids(angles_deg, labels)
                     self.ax1.set_ylim(-dyn_range, 0)
                     self.ax1.set_yticks(np.arange(-dyn_range, 1, tick_step))
-                    self.ax1.plot(theta_v, af_db_v, color='#1f77b4', linewidth=2)
-                    self.ax1.grid(True, alpha=0.5, linestyle='--')
+                    self.ax1.plot(theta_v, af_db_v, color=self.PLOT_COLOR_VERTICAL, linewidth=2)
+                    self.ax1.grid(True, alpha=0.75, linestyle='--')
                     
-                    directions_v = {'+X': 0, '+Z': np.pi/2, '-X': np.pi, '-Z': 3*np.pi/2}
+                    directions_v = {'+Z': 0, '+X': np.pi/2, '-Z': np.pi, '-X': 3*np.pi/2}
                     # Place direction labels slightly below the top (0 dB) so they remain
                     # visible for small dynamic ranges. Offset is min(2 dB, 20% of dyn_range).
                     offset = min(2, dyn_range * 0.2)
                     label_r = -offset
                     for label, theta_rad in directions_v.items():
                         self.ax1.text(theta_rad, label_r, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
-                    self.ax1.set_title("Vertical (XZ)", fontsize=10)
-                    self.ax1_base_title = "Vertical (XZ)"
+                    self.ax1.set_title(f"Elevation θ (XZ) --- HPBW={hpbw_elevation:.1f}°", fontsize=10)
+                    self.ax1_base_title = f"Elevation θ (XZ) --- HPBW={hpbw_elevation:.1f}°"
                     
                     # Horizontal view
-                    theta_h, total_linear_h = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Horizontal (XY)", array_axis=array_axis)
+                    theta_h, total_linear_h = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Azimuth φ (XY)", array_axis=array_axis)
                     af_db_h = self.calculator.convert_to_db(total_linear_h, dynamic_range=dyn_range)
                     
                     self.theta_h = theta_h
@@ -617,16 +690,16 @@ class App(ctk.CTk):
                     self.ax2.set_thetagrids(angles_deg, labels)
                     self.ax2.set_ylim(-dyn_range, 0)
                     self.ax2.set_yticks(np.arange(-dyn_range, 1, tick_step))
-                    self.ax2.plot(theta_h, af_db_h, color='red', linewidth=2)
-                    self.ax2.grid(True, alpha=0.5, linestyle='--')
+                    self.ax2.plot(theta_h, af_db_h, color=self.PLOT_COLOR_HORIZONTAL, linewidth=2)
+                    self.ax2.grid(True, alpha=0.75, linestyle='--')
                     
                     directions_h = {'+X': 0, '+Y': np.pi/2, '-X': np.pi, '-Y': 3*np.pi/2}
                     offset = min(2, dyn_range * 0.2)
                     label_r = -offset
                     for label, theta_rad in directions_h.items():
                         self.ax2.text(theta_rad, label_r, label, ha='center', va='center', fontsize=8, color='red', fontweight='bold')
-                    self.ax2.set_title("Horizontal (XY)", fontsize=10)
-                    self.ax2_base_title = "Horizontal (XY)"
+                    self.ax2.set_title(f"Azimuth φ (XY) --- HPBW={hpbw_azimuth:.1f}°", fontsize=10)
+                    self.ax2_base_title = f"Azimuth φ (XY) --- HPBW={hpbw_azimuth:.1f}°"
                     
                     self.ax = self.ax1  # For cursor, use first one, but disable cursor for Both
                     
@@ -642,15 +715,15 @@ class App(ctk.CTk):
                     
                     self.ax.set_ylim(-dyn_range, 0)
                     self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
-                    color = 'red' if "Horizontal" in view else '#1f77b4'
+                    color = self.PLOT_COLOR_VERTICAL if "Elevation" in view else self.PLOT_COLOR_HORIZONTAL
                     self.ax.plot(theta, af_db, color=color, linewidth=2)
-                    self.ax.grid(True, alpha=0.5, linestyle='--')
+                    self.ax.grid(True, alpha=0.75, linestyle='--')
                     
                     # Add axis direction labels
-                    if "Horizontal" in view:
+                    if "Azimuth" in view:
                         directions = {'+X': 0, '+Y': np.pi/2, '-X': np.pi, '-Y': 3*np.pi/2}
                     else:
-                        directions = {'+X': 0, '+Z': np.pi/2, '-X': np.pi, '-Z': 3*np.pi/2}
+                        directions = {'+Z': 0, '+X': np.pi/2, '-Z': np.pi, '-X': 3*np.pi/2}
                     offset = min(2, dyn_range * 0.2)
                     label_r = -offset
                     for label, theta_rad in directions.items():
@@ -662,7 +735,7 @@ class App(ctk.CTk):
                     self.ax1 = self.fig.add_subplot(121)
                     
                     # Vertical view
-                    theta_v, total_linear_v = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Vertical (XZ)", array_axis=array_axis)
+                    theta_v, total_linear_v = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Elevation θ (XZ)", array_axis=array_axis)
                     af_db_v = self.calculator.convert_to_db(total_linear_v, dynamic_range=dyn_range)
                     theta_deg_v = np.rad2deg(theta_v)
                     theta_deg_shifted_v = np.copy(theta_deg_v)
@@ -671,22 +744,23 @@ class App(ctk.CTk):
                     self.theta_deg_sorted_v = theta_deg_shifted_v[sort_idx_v]
                     self.af_db_sorted_v = af_db_v[sort_idx_v]
                     
-                    self.ax1.plot(self.theta_deg_sorted_v, self.af_db_sorted_v, color='#1f77b4', linewidth=2)
-                    self.ax1.set_xlabel("Angle (°)")
+                    self.ax1.plot(self.theta_deg_sorted_v, self.af_db_sorted_v, color=self.PLOT_COLOR_VERTICAL, linewidth=2)
+                    # Label the varying angle explicitly (Theta for elevation)
+                    self.ax1.set_xlabel(r'$\theta$ (°)')
                     self.ax1.set_ylabel("Normalized Power (dB)")
                     self.ax1.set_xlim(-180, 180)
                     self.ax1.margins(x=0)
                     self.ax1.set_ylim(-dyn_range, 0)
                     self.ax1.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax1.set_xticks(np.arange(-180, 181, angle_step))
-                    self.ax1.grid(True, alpha=0.5, linestyle='--')
-                    self.ax1.set_title("Vertical (XZ)", fontsize=10)
-                    self.ax1_base_title = "Vertical (XZ)"
+                    self.ax1.grid(True, alpha=0.75, linestyle='--')
+                    self.ax1.set_title(f"Elevation θ (XZ) --- HPBW={hpbw_elevation:.1f}°", fontsize=10)
+                    self.ax1_base_title = f"Elevation θ (XZ) --- HPBW={hpbw_elevation:.1f}°"
                     
                     self.ax2 = self.fig.add_subplot(122)
                     
                     # Horizontal view
-                    theta_h, total_linear_h = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Horizontal (XY)", array_axis=array_axis)
+                    theta_h, total_linear_h = self.calculator.calculate_pattern(N, d, beta, el_type, currents, view="Azimuth φ (XY)", array_axis=array_axis)
                     af_db_h = self.calculator.convert_to_db(total_linear_h, dynamic_range=dyn_range)
                     theta_deg_h = np.rad2deg(theta_h)
                     theta_deg_shifted_h = np.copy(theta_deg_h)
@@ -695,17 +769,18 @@ class App(ctk.CTk):
                     self.theta_deg_sorted_h = theta_deg_shifted_h[sort_idx_h]
                     self.af_db_sorted_h = af_db_h[sort_idx_h]
                     
-                    self.ax2.plot(self.theta_deg_sorted_h, self.af_db_sorted_h, color='red', linewidth=2)
-                    self.ax2.set_xlabel("Angle (°)")
+                    self.ax2.plot(self.theta_deg_sorted_h, self.af_db_sorted_h, color=self.PLOT_COLOR_HORIZONTAL, linewidth=2)
+                    # Label the varying angle explicitly (Phi for azimuth)
+                    self.ax2.set_xlabel(r'$\phi$ (°)')
                     self.ax2.set_ylabel("Normalized Power (dB)")
                     self.ax2.set_xlim(-180, 180)
                     self.ax2.margins(x=0)
                     self.ax2.set_ylim(-dyn_range, 0)
                     self.ax2.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax2.set_xticks(np.arange(-180, 181, angle_step))
-                    self.ax2.grid(True, alpha=0.5, linestyle='--')
-                    self.ax2.set_title("Horizontal (XY)", fontsize=10)
-                    self.ax2_base_title = "Horizontal (XY)"
+                    self.ax2.grid(True, alpha=0.75, linestyle='--')
+                    self.ax2.set_title(f"Azimuth φ (XY) --- HPBW={hpbw_azimuth:.1f}°", fontsize=10)
+                    self.ax2_base_title = f"Azimuth φ (XY) --- HPBW={hpbw_azimuth:.1f}°"
                     
                     self.ax = self.ax1  # For compatibility
                     
@@ -723,23 +798,30 @@ class App(ctk.CTk):
                     self.theta_deg_sorted = theta_deg_shifted[sort_idx]
                     self.af_db_sorted = af_db[sort_idx]
                     
-                    color = 'red' if "Horizontal" in view else '#1f77b4'
+                    color = self.PLOT_COLOR_VERTICAL if "Elevation" in view else self.PLOT_COLOR_HORIZONTAL
                     self.ax.plot(self.theta_deg_sorted, self.af_db_sorted, color=color, linewidth=2)
-                    self.ax.set_xlabel("Angle (°)")
+                    # Label the varying angle explicitly depending on the view
+                    self.ax.set_xlabel(r'$\phi$ (°)' if "Azimuth" in view else r'$\theta$ (°)')
                     self.ax.set_ylabel("Normalized Power (dB)")
                     self.ax.set_xlim(-180, 180)
                     self.ax.margins(x=0)
                     self.ax.set_ylim(-dyn_range, 0)
                     self.ax.set_yticks(np.arange(-dyn_range, 1, tick_step))
                     self.ax.set_xticks(np.arange(-180, 181, angle_step))
-                    self.ax.grid(True, alpha=0.5, linestyle='--')
+                    self.ax.grid(True, alpha=0.75, linestyle='--')
 
             if view == "Both":
-                title_text = f"Pattern (Both Views, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, HPBW={hpbw:.1f}°"
-                self.fig.suptitle(title_text, fontsize=10)
+                suptitle_text = f"{config_str}\nDmax={d_dbi:.2f} dBi"
+                self.fig.suptitle(suptitle_text, fontsize=10)
             else:
-                title_text = f"Pattern ({view}, Array on {array_axis}): {el_type}\nN={N}, d={d}λ, β={beta}°, Dmax={d_dbi:.2f}dBi, HPBW={hpbw:.1f}°"
-                self.ax.set_title(title_text, va='bottom', fontsize=10)
+                if "Azimuth" in view:
+                    hpbw = hpbw_azimuth
+                else:
+                    hpbw = hpbw_elevation
+                params_line = f"{config_str} | View={view}"
+                results_line = f"HPBW={hpbw:.1f}° --- Dmax={d_dbi:.2f} dBi"
+                title_text = f"{params_line}\n{results_line}"
+                self.ax.set_title(title_text, fontsize=10)
                 self.ax_base_title = title_text
             
             # --- DRAW 3D ORIENTATION INSET ---
@@ -751,42 +833,51 @@ class App(ctk.CTk):
                     theta_inset_h = theta_h
                     af_db_inset_h = af_db_h
                     inset_pos = [0.375, 0.0, 0.25, 0.25]  # Center bottom
-                    self.draw_3d_inset(is_horiz, axis_letter, theta_inset_v, af_db_inset_v, dyn_range, inset_pos, theta_inset_h, af_db_inset_h)
+                    self.draw_3d_inset(is_horiz, axis_letter, theta_inset_v, af_db_inset_v, dyn_range, inset_pos, theta_inset_h, af_db_inset_h, el_type)
                 else:
-                    is_horiz = "Horizontal" in view
+                    is_horiz = "Azimuth" in view
                     theta_inset = theta
                     af_db_inset = af_db
                     inset_pos = [0.0, 0.0, 0.25, 0.25]  # Bottom left
-                    self.draw_3d_inset(is_horiz, axis_letter, theta_inset, af_db_inset, dyn_range, inset_pos)
+                    self.draw_3d_inset(is_horiz, axis_letter, theta_inset, af_db_inset, dyn_range, inset_pos, el_type=el_type)
             
             # Apply tight_layout only if no 3D inset (to avoid warning with incompatible axes)
             if not self.chk_3d.get():
                 self.fig.tight_layout(rect=[0, 0.05, 1, 0.95])
             
             # Update fixed cursor db and create visuals
-            if self.fixed_cursor and self.fixed_x is not None:
-                target_ax = None
-                target_theta = None
-                target_db_arr = None
-                
-                if view == "Both":
-                    if self.fixed_subplot_idx == 0: # Left / Vertical
-                        target_ax = self.ax1
+            if view == "Both":
+                # Handle independent cursors for each subplot
+                if self.fixed_cursor1 and self.fixed_x1 is not None:
+                    target_theta = self.theta_v if plot_type == "Polar" else self.theta_deg_sorted_v
+                    target_db_arr = self.af_db_v if plot_type == "Polar" else self.af_db_sorted_v
+                    if target_theta is not None and target_db_arr is not None:
                         if plot_type == "Polar":
-                            target_theta = self.theta_v
-                            target_db_arr = self.af_db_v
+                            db = np.interp(self.fixed_x1, target_theta, target_db_arr)
                         else:
-                            target_theta = self.theta_deg_sorted_v
-                            target_db_arr = self.af_db_sorted_v
-                    elif self.fixed_subplot_idx == 1: # Right / Horizontal
-                        target_ax = self.ax2
+                            db = np.interp(self.fixed_x1, target_theta, target_db_arr)
+                        self.fixed_db1 = db
+                        pt = self.ax1.scatter(self.fixed_x1, self.fixed_db1, color=self.CURSOR_COLOR_VERTICAL, s=50, zorder=10)
+                        ln = self.ax1.axvline(self.fixed_x1, color=self.CURSOR_COLOR_VERTICAL, linestyle='--')
+                        self.cursor_point1 = pt
+                        self.cursor_line1 = ln
+
+                if self.fixed_cursor2 and self.fixed_x2 is not None:
+                    target_theta = self.theta_h if plot_type == "Polar" else self.theta_deg_sorted_h
+                    target_db_arr = self.af_db_h if plot_type == "Polar" else self.af_db_sorted_h
+                    if target_theta is not None and target_db_arr is not None:
                         if plot_type == "Polar":
-                            target_theta = self.theta_h
-                            target_db_arr = self.af_db_h
+                            db = np.interp(self.fixed_x2, target_theta, target_db_arr)
                         else:
-                            target_theta = self.theta_deg_sorted_h
-                            target_db_arr = self.af_db_sorted_h
-                else:
+                            db = np.interp(self.fixed_x2, target_theta, target_db_arr)
+                        self.fixed_db2 = db
+                        pt = self.ax2.scatter(self.fixed_x2, self.fixed_db2, color=self.CURSOR_COLOR_HORIZONTAL, s=50, zorder=10)
+                        ln = self.ax2.axvline(self.fixed_x2, color=self.CURSOR_COLOR_HORIZONTAL, linestyle='--')
+                        self.cursor_point2 = pt
+                        self.cursor_line2 = ln
+            else:
+                # Existing logic for single view
+                if self.fixed_cursor and self.fixed_x is not None:
                     target_ax = self.ax
                     if plot_type == "Polar":
                         target_theta = self.theta_plot
@@ -795,46 +886,28 @@ class App(ctk.CTk):
                         target_theta = self.theta_deg_sorted
                         target_db_arr = self.af_db_sorted
 
-                if target_ax and target_theta is not None and target_db_arr is not None:
-                    if plot_type == "Polar":
-                        db = np.interp(self.fixed_x, target_theta, target_db_arr)
-                    else:
-                        db = np.interp(self.fixed_x, target_theta, target_db_arr)
-                    
-                    self.fixed_db = db
-                    
-                    # Create visuals on the target axis
-                    pt = target_ax.scatter(self.fixed_x, self.fixed_db, color='red', s=50, zorder=10)
-                    ln = target_ax.axvline(self.fixed_x, color='red', linestyle='--')
-                    
-                    # Store references
-                    if view == "Both":
-                        if self.fixed_subplot_idx == 0:
-                            self.cursor_point1 = pt
-                            self.cursor_line1 = ln
+                    if target_ax and target_theta is not None and target_db_arr is not None:
+                        if plot_type == "Polar":
+                            db = np.interp(self.fixed_x, target_theta, target_db_arr)
                         else:
-                            self.cursor_point2 = pt
-                            self.cursor_line2 = ln
-                    else:
+                            db = np.interp(self.fixed_x, target_theta, target_db_arr)
+                        
+                        self.fixed_db = db
+                        
+                        # Create visuals on the target axis
+                        cursor_color = self.CURSOR_COLOR_HORIZONTAL if "Horizontal" in view else self.CURSOR_COLOR_VERTICAL
+                        pt = target_ax.scatter(self.fixed_x, self.fixed_db, color=cursor_color, s=50, zorder=10)
+                        ln = target_ax.axvline(self.fixed_x, color=cursor_color, linestyle='--')
+                        
                         self.cursor_point = pt
                         self.cursor_line = ln
 
-                    # Update cursor text
-                    angle_deg = np.rad2deg(self.fixed_x) if plot_type == "Polar" else self.fixed_x
-                    if plot_type == "Polar":
-                        angle_deg = self._normalize_angle_deg(angle_deg)
-                    dir_dbi = 10 * np.log10(self.D_linear) + db if self.D_linear > 0 else 0
-                    txt = f"Cursor: ({angle_deg:.1f}°, {db:.1f}dB), D(°)={dir_dbi:.1f}dBi"
-                    
-                    if view == "Both":
-                        if self.fixed_subplot_idx == 0: self.cursor_text1 = txt
-                        else: self.cursor_text2 = txt
-                    else:
-                        self.cursor_text = txt
-                else:
-                    # If we can't restore (e.g. switched view and lost context), unfreeze
-                    self.fixed_cursor = False
-                    self.fixed_subplot_idx = None
+                        # Update cursor text
+                        angle_deg = np.rad2deg(self.fixed_x) if plot_type == "Polar" else self.fixed_x
+                        if plot_type == "Polar":
+                            angle_deg = self._normalize_angle_deg(angle_deg)
+                        dir_dbi = 10 * np.log10(self.D_linear) + db if self.D_linear > 0 else 0
+                        self.cursor_text = f"Cursor: ({angle_deg:.1f}°, {db:.1f}dB), D(°)={dir_dbi:.1f}dBi"
             
             self.update_title()
             self.canvas.draw()
