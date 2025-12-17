@@ -595,7 +595,7 @@ class App(ctk.CTk):
                     self.ax1.plot(theta_v, af_db_v, color='#1f77b4', linewidth=2)
                     self.ax1.grid(True, alpha=0.5, linestyle='--')
                     
-                    directions_v = {'+X': 0, '+Z': np.pi/2, '-X': np.pi, '-Z': 3*np.pi/2}
+                    directions_v = {'+Z': 0, '+X': np.pi/2, '-Z': np.pi, '-X': 3*np.pi/2}
                     # Place direction labels slightly below the top (0 dB) so they remain
                     # visible for small dynamic ranges. Offset is min(2 dB, 20% of dyn_range).
                     offset = min(2, dyn_range * 0.2)
@@ -660,7 +660,7 @@ class App(ctk.CTk):
                     if "Horizontal" in view:
                         directions = {'+X': 0, '+Y': np.pi/2, '-X': np.pi, '-Y': 3*np.pi/2}
                     else:
-                        directions = {'+X': 0, '+Z': np.pi/2, '-X': np.pi, '-Z': 3*np.pi/2}
+                        directions = {'+Z': 0, '+X': np.pi/2, '-Z': np.pi, '-X': 3*np.pi/2}
                     offset = min(2, dyn_range * 0.2)
                     label_r = -offset
                     for label, theta_rad in directions.items():
