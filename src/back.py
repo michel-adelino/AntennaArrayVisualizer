@@ -170,7 +170,7 @@ class AntennaCalculator:
             
         power = (np.abs(AF) * EF)**2
         max_p = np.max(power)
-        if max_p == 0: return 360.0  # Omnidirectional
+        if max_p == 0: return 0.0  # No radiation
         
         half = 0.5 * max_p
         idx_max = np.argmax(power)
