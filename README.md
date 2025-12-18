@@ -45,18 +45,6 @@ To create an installer for the application, follow these steps:
 5. Open `innoSetupScript.iss` in Inno Setup Compiler and compile it to create the installer `Installer_AntennaArrayVisualizer.exe` in the `Output` folder.
 
 
-## Authors
-
-*   *Alejandro Nahuel Heir*
-*   *María de Guadalupe Voss*
-
-## Acknowledgements
-
-Special thanks to the teaching staff of the Electromagnetism course at ITBA for their guidance and support:
-
-*   *Lic. Patricio Alejandro Marco* (Course Director)
-*   *Eng. Pablo Luciano Lannes* (Adjunct Professor)
-
 ## Bibliography
 
 *   Course material from "Electromagnetism" (22.21) at ITBA.
